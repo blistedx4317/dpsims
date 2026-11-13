@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DPS Inventory – one-time set-up</title>
+<style>
+body{font:16px/1.45 system-ui,sans-serif;max-width:460px;margin:32px auto;padding:0 18px;color:#14201a}
+h1{font-size:22px}label{display:block;margin:14px 0 4px;font-weight:600;font-size:14px}
+input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #b9c5bd;border-radius:10px;font-size:16px}
+button{margin-top:20px;width:100%;padding:13px;border:0;border-radius:12px;background:#0f5a40;color:#fff;font-size:16px;font-weight:700}
+#m{margin-top:16px;font-weight:600}.ok{color:#0f7a58}.er{color:#c4302a}small{color:#5a6a61}
+</style></head><body>
+<h1>One-time set-up</h1>
+<p><small>Run this once after deploying. It creates the database tables and the Admin and Principal sign-ins. It refuses to run a second time.</small></p>
+<label>Set-up token <small>(the SETUP_TOKEN you saved in Vercel)</small></label><input id="t" type="password" autocomplete="off">
+<label>Admin password <small>(6+ characters)</small></label><input id="ap" type="password" autocomplete="new-password">
+<label>Admin PIN <small>(4 digits, not 1234 or 1111)</small></label><input id="an" inputmode="numeric" maxlength="4" autocomplete="off">
+<label>Principal password</label><input id="pp" type="password" autocomplete="new-password">
+<label>Principal PIN</label><input id="pn" inputmode="numeric" maxlength="4" autocomplete="off">
+<button id="go">Create sign-ins</button><div id="m"></div>
+<script>
+document.getElementById('go').onclick=async function(){
+  var m=document.getElementById('m');m.className='';m.textContent='Working...';
+  try{
+    var r=await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      token:t.value,adminPassword:ap.value,adminPin:an.value,principalPassword:pp.value,principalPin:pn.value})});
+    var j=await r.json();
+    if(r.ok){m.className='ok';m.textContent='Done. Open the app and sign in as Admin.'}else{m.className='er';m.textContent=j.error||'Failed.'}
+  }catch(e){m.className='er';m.textContent='No connection to the server.'}
+};
+</script></body></html>
