@@ -3,7 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f2f7f4">
+
+<meta name="theme-color" content="#050505" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="application-name" content="DPS IMS">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DPS IMS">
+<meta name="format-detection" content="telephone=no">
+<meta name="msapplication-TileColor" content="#050505">
+
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
 <title>DPS Amrapali Inventory</title>
 <link rel="stylesheet" href="/api/assets?key=fonts.css">
 <style>
@@ -7286,5 +7301,217 @@ html body #L#L#L#L[data-theme="dgwhite"] .msg:not(:empty){background:rgba(217,58
   b.addEventListener('mousedown',function(e){e.preventDefault()});
 })();
 </script>
+
+<style id="pwa-install-styles">
+#pwa-install-banner {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  max-width: 420px;
+  width: calc(100vw - 32px);
+  background: rgba(14, 20, 32, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(155, 171, 132, 0.4);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  z-index: 99999;
+  color: #fff;
+  font-family: inherit;
+  animation: pwaSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+@keyframes pwaSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.pwa-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.pwa-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #fff url('/icon-192.png') center/contain no-repeat;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.pwa-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pwa-text strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pwa-text small {
+  font-size: 11.5px;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+.pwa-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.pwa-install-btn {
+  background: #9bab84;
+  color: #0b1207;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(155, 171, 132, 0.3);
+}
+.pwa-install-btn:hover {
+  background: #adc093;
+  transform: translateY(-1px);
+}
+.pwa-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pwa-dismiss-btn:hover {
+  color: #f1f5f9;
+  background: rgba(255,255,255,0.08);
+}
+@media (max-width: 480px) {
+  #pwa-install-banner {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    padding: 12px 14px;
+  }
+}
+</style>
+
+<div id="pwa-install-banner" style="display:none" role="dialog" aria-label="Install DPS IMS Application">
+  <div class="pwa-content">
+    <div class="pwa-icon"></div>
+    <div class="pwa-text">
+      <strong>DPS Inventory App</strong>
+      <small>Install as standalone application</small>
+    </div>
+  </div>
+  <div class="pwa-btns">
+    <button id="pwa-install-action" class="pwa-install-btn">Install</button>
+    <button id="pwa-install-dismiss" class="pwa-dismiss-btn" title="Dismiss">&times;</button>
+  </div>
+</div>
+
+<script id="pwa-init-script">
+(function() {
+  // 1. Service Worker Registration
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(function(reg) {
+          console.log('[PWA] Service Worker registered with scope:', reg.scope);
+        })
+        .catch(function(err) {
+          console.warn('[PWA] Service Worker registration failed:', err);
+        });
+    });
+  }
+
+  // 2. Standalone Check (already installed or running inside PWA container)
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                     window.navigator.standalone === true ||
+                     document.referrer.includes('android-app://');
+
+  if (isStandalone) {
+    console.log('[PWA] Running in standalone PWA mode');
+    return;
+  }
+
+  // Check if previously dismissed in this session
+  if (sessionStorage.getItem('pwa_prompt_dismissed') === '1') {
+    return;
+  }
+
+  var deferredPrompt = null;
+  var banner = document.getElementById('pwa-install-banner');
+  var installBtn = document.getElementById('pwa-install-action');
+  var dismissBtn = document.getElementById('pwa-install-dismiss');
+
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (banner && sessionStorage.getItem('pwa_prompt_dismissed') !== '1') {
+      banner.style.display = 'flex';
+    }
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', function() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(choiceResult) {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('[PWA] User accepted the install prompt');
+          }
+          deferredPrompt = null;
+          if (banner) banner.style.display = 'none';
+        });
+      } else {
+        // Fallback for iOS Safari or other browsers
+        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS) {
+          alert("To install DPS IMS on your iPhone or iPad:\n\n1. Tap the Share button (square with arrow) at the bottom.\n2. Scroll down and tap 'Add to Home Screen' (+).\n3. Tap 'Add' in the top right.");
+        } else {
+          alert("To install this app:\nTap the 3 dots menu in your browser and select 'Install app' or 'Add to Home screen'.");
+        }
+        if (banner) banner.style.display = 'none';
+      }
+    });
+  }
+
+  if (dismissBtn && banner) {
+    dismissBtn.addEventListener('click', function() {
+      banner.style.display = 'none';
+      sessionStorage.setItem('pwa_prompt_dismissed', '1');
+    });
+  }
+
+  window.addEventListener('appinstalled', function() {
+    console.log('[PWA] Application installed successfully!');
+    if (banner) banner.style.display = 'none';
+    deferredPrompt = null;
+  });
+})();
+</script>
+
 </body>
 </html>
