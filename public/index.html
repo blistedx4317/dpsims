@@ -3502,7 +3502,29 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       if(r.rejA&&!Array.isArray(r.rejA))r.rejA=typeof r.rejA==='object'?Object.values(r.rejA):[];
     });
     window.__reqSeq=d.reqSeq||0;
-    bills.forEach(function(b){if(b.stockAdded===undefined)b.stockAdded=!(b.date<iso())});
+    bills = (d.bills || []).map(function(b) {
+      if (!b) return b;
+      var vendor = b.vendor || b.sup || b.vendorName || '';
+      var ip = b.ip || b.inpass || b.inPassNumber || '';
+      var no = b.no || b.billNumber || '';
+      var disc = +b.disc || 0;
+      var gst = b.gst !== undefined ? +b.gst : 0;
+      if (!gst && b.taxable && (b.cgst || b.sgst)) {
+        gst = Math.round(((+b.cgst || 0) + (+b.sgst || 0) + (+b.igst || 0)) / (+b.taxable) * 100);
+      }
+      var lines = b.lines || [];
+      if (Array.isArray(lines)) {
+        lines = lines.map(function(l) {
+          if (Array.isArray(l)) return [+l[0], String(l[1] || ''), +l[2] || 0, +l[3] || 0];
+          if (l && typeof l === 'object') return [+l.id, String(l.v || l.variantName || 'Standard'), +l.q || +l.quantity || 0, +l.r || +l.unitRate || 0];
+          return [0, '', 0, 0];
+        });
+      }
+      return Object.assign({}, b, {
+        vendor: vendor, sup: vendor, ip: ip, inpass: ip, no: no, disc: disc, gst: gst, lines: lines,
+        stockAdded: b.stockAdded !== undefined ? b.stockAdded : !(b.date < iso())
+      });
+    });
     if(d.sessionCfg)sessionCfg=Object.assign({},defaultSessionCfg,d.sessionCfg);
   }
   window.__dpsLoad=async function(){
@@ -3876,20 +3898,44 @@ window.dpsApi=async function(path,opts){opts=opts||{};
   }
 
   /* ---------- BILLS ---------- */
-  function bt(b){var sub=b.lines.reduce(function(a,l){return a+l[2]*l[3]},0),d=sub*b.disc/100,g=(sub-d)*b.gst/100;return {sub:sub,d:d,g:g,t:sub-d+g}}
+  function bt(b) {
+    if (!b) return { sub: 0, d: 0, g: 0, t: 0 };
+    var lines = b.lines || [];
+    var sub = lines.reduce(function(a, l) {
+      if (Array.isArray(l)) return a + (+l[2] || 0) * (+l[3] || 0);
+      if (l && typeof l === 'object') return a + (+l.q || +l.quantity || 0) * (+l.r || +l.unitRate || 0);
+      return a;
+    }, 0);
+    var disc = +b.disc || 0;
+    var d = sub * disc / 100;
+    var gst = b.gst !== undefined ? +b.gst : 0;
+    if (!gst && b.taxable && (b.cgst || b.sgst)) {
+      gst = Math.round(((+b.cgst || 0) + (+b.sgst || 0) + (+b.igst || 0)) / (+b.taxable) * 100);
+    }
+    var g = (sub - d) * gst / 100;
+    return { sub: sub, d: d, g: g, t: sub - d + g };
+  }
   var bf={q:'',p:'all',v:''};
-  function billFilter(){
-    var now=iso(),m=now.slice(0,7),d30=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
-    return bills.filter(function(b){
-      if(bf.p==='month'&&b.date.slice(0,7)!==m)return false;
-      if(bf.p==='30'&&b.date<d30)return false;
-      if(bf.v&&b.vendor!==bf.v)return false;
-      if(bf.q){
-        var hay=(b.vendor+' '+b.no+' '+b.ip+' '+b.lines.map(function(l){var it=find(l[0]);return it?it.name:''}).join(' ')).toLowerCase();
-        if(hay.indexOf(bf.q)<0)return false;
+  function billFilter() {
+    var now = iso(), m = now.slice(0, 7), d30 = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+    return bills.filter(function(b) {
+      var v = b.vendor || b.sup || '';
+      var no = b.no || '';
+      var ip = b.ip || b.inpass || '';
+      if (bf.p === 'month' && b.date.slice(0, 7) !== m) return false;
+      if (bf.p === '30' && b.date < d30) return false;
+      if (bf.v && v !== bf.v) return false;
+      if (bf.q) {
+        var linesStr = (b.lines || []).map(function(l) {
+          var id = Array.isArray(l) ? l[0] : (l ? l.id : 0);
+          var it = find(id);
+          return it ? it.name : '';
+        }).join(' ');
+        var hay = (v + ' ' + no + ' ' + ip + ' ' + linesStr).toLowerCase();
+        if (hay.indexOf(bf.q) < 0) return false;
       }
       return true;
-    }).sort(function(a,b){return a.date<b.date?1:(a.date>b.date?-1:b.id-a.id)});
+    }).sort(function(a, b) { return a.date < b.date ? 1 : (a.date > b.date ? -1 : b.id - a.id) });
   }
   function monthLbl(d){try{return new Date(d+'T00:00:00').toLocaleString('en-IN',{month:'long',year:'numeric'})}catch(e){return d.slice(0,7)}}
   function billListHTML(){
@@ -3903,8 +3949,8 @@ window.dpsApi=async function(path,opts){opts=opts||{};
         +g.L.map(function(b){
           var past=(b.stockAdded===false||b.date<iso());
           var items=b.lines.length;
-          return '<div class="bl lk" data-b="'+b.id+'" style="animation-delay:'+Math.min(bn++,14)*40+'ms"><div class="bv">'+E(b.vendor.replace(/^(M\/s\.?|Messrs\.?)\s+/i,'').charAt(0).toUpperCase())+'</div>'
-            +'<div class="bm"><b>'+E(b.vendor)+'</b><small>Bill '+E(b.no)+' \u2022 In-Pass '+E(b.ip)+'</small><div class="bl-tags"><span class="bl-chip">'+items+' item'+(items===1?'':'s')+'</span>'+(past?'<span class="bl-chip w">Past date</span>':'<span class="bl-chip g">Stock synced</span>')+'</div></div>'
+          return '<div class="bl lk" data-b="'+b.id+'" style="animation-delay:'+Math.min(bn++,14)*40+'ms"><div class="bv">'+E((b.vendor || b.sup || 'V').replace(/^(M\/s\.?|Messrs\.?)\s+/i,'').charAt(0).toUpperCase())+'</div>'
+            +'<div class="bm"><b>'+E(b.vendor||b.sup||'Vendor')+'</b><small>Bill '+E(b.no||'')+' \u2022 In-Pass '+E(b.ip||b.inpass||'')+'</small><div class="bl-tags"><span class="bl-chip">'+items+' item'+(items===1?'':'s')+'</span>'+(past?'<span class="bl-chip w">Past date</span>':'<span class="bl-chip g">Stock synced</span>')+'</div></div>'
             +'<div class="ba"><b>'+money(bt(b).t)+'</b><small>'+fmt(b.date)+'</small></div></div>';
         }).join('');
     }).join('');
@@ -3917,7 +3963,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
   function billsView(){
     var sum=bills.reduce(function(a,b){return a+bt(b).t},0),m=iso().slice(0,7);
     var msum=bills.filter(function(b){return b.date.slice(0,7)===m}).reduce(function(a,b){return a+bt(b).t},0);
-    var vendors=[];bills.forEach(function(b){if(vendors.indexOf(b.vendor)<0)vendors.push(b.vendor)});vendors.sort();
+    var vendors=[];bills.forEach(function(b){var v=b.vendor||b.sup;if(v&&vendors.indexOf(v)<0)vendors.push(v)});vendors.sort();
     if(bf.v&&vendors.indexOf(bf.v)<0)bf.v='';
     var newBillBtn=(getRole()==='admin')?'<button class="pill" data-at="bill">+ New bill</button>':'';
     var h=top('Bills',newBillBtn)+kp([['Inward bills',bills.length],['Total value (\u20b9)',Math.round(sum)],['This month (\u20b9)',Math.round(msum)],['Vendors',vendors.length]]);
@@ -3946,10 +3992,11 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       :'<span class="bl-chip w">Past date \u2022 stock untouched</span>';
     var editBtn=isAdmin?'<button class="pill" data-a="editbill" data-b="'+b.id+'" style="margin-right:6px"><svg style="width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Edit Bill</button>':'';
     var h=top('Bill '+E(b.no),editBtn)+'<div class="det"><button class="back" data-a="back">'+ic('back')+'All bills</button>';
-    h+='<div class="bd-hero"><div class="bv lg">'+E(b.vendor.replace(/^(M\/s\.?|Messrs\.?)\s+/i,'').charAt(0).toUpperCase())+'</div><div class="bd-info"><h2>'+E(b.vendor)+'</h2><div class="bl-tags"><span class="bl-chip">Bill '+E(b.no)+'</span><span class="bl-chip">In-Pass '+E(b.ip)+'</span><span class="bl-chip">'+fmt(b.date)+'</span>'+stTag+'</div></div><div class="bd-amt"><b>'+money(t.t)+'</b><small>Total incl. GST</small></div></div>';
-    h+='<h2 class="s">Items ('+b.lines.length+')</h2><div class="bd-lines">'+b.lines.map(function(l){
-      var it=find(l[0]);
-      return '<div class="bd-line">'+rqTile(it)+'<div class="bd-li"><b>'+(it?E(it.name):'?')+'</b><span>'+dotHTML(l[1])+E(l[1])+'</span></div><div class="bd-calc"><span>'+l[2]+' \u00d7 '+money(+l[3])+'</span><b>'+money(l[2]*l[3])+'</b></div></div>';
+    h+='<div class="bd-hero"><div class="bv lg">'+E((b.vendor || b.sup || 'V').replace(/^(M\/s\.?|Messrs\.?)\s+/i,'').charAt(0).toUpperCase())+'</div><div class="bd-info"><h2>'+E(b.vendor||b.sup||'Vendor')+'</h2><div class="bl-tags"><span class="bl-chip">Bill '+E(b.no||'')+'</span><span class="bl-chip">In-Pass '+E(b.ip||b.inpass||'')+'</span><span class="bl-chip">'+fmt(b.date)+'</span>'+stTag+'</div></div><div class="bd-amt"><b>'+money(t.t)+'</b><small>Total incl. GST</small></div></div>';
+    h+='<h2 class="s">Items ('+(b.lines||[]).length+')</h2><div class="bd-lines">'+(b.lines||[]).map(function(l){
+      var lid=Array.isArray(l)?l[0]:(l?l.id:0),lv=Array.isArray(l)?l[1]:(l?l.v:''),lq=Array.isArray(l)?+l[2]:(l?+l.q:0),lr=Array.isArray(l)?+l[3]:(l?+l.r:0);
+      var it=find(lid);
+      return '<div class="bd-line">'+rqTile(it)+'<div class="bd-li"><b>'+(it?E(it.name):'?')+'</b><span>'+dotHTML(lv)+E(lv)+'</span></div><div class="bd-calc"><span>'+lq+' \u00d7 '+money(lr)+'</span><b>'+money(lq*lr)+'</b></div></div>';
     }).join('')+'</div>';
     h+='<div class="bd-tot"><div class="kb-row"><span>Subtotal</span><span>'+money(t.sub)+'</span></div><div class="kb-row"><span>Discount ('+b.disc+'%)</span><span>\u2212 '+money(t.d)+'</span></div><div class="kb-row"><span>GST ('+b.gst+'%)</span><span>+ '+money(t.g)+'</span></div><div class="kb-row tot"><span>Net total payable</span><b>'+money(t.t)+'</b></div></div></div>';
     $('#main').innerHTML=h;
@@ -3975,15 +4022,19 @@ window.dpsApi=async function(path,opts){opts=opts||{};
     if(getRole()!=='admin'){billId=id;editingBillId=null;go();return}
     var b=bills.filter(function(x){return x.id===id})[0];
     if(!b){view='bills';clearSub();go();return}
-    rowsEB=b.lines.map(function(l){return {id:l[0],v:l[1],q:l[2],r:l[3]}});
+    rowsEB=(b.lines||[]).map(function(l){
+      if(Array.isArray(l))return {id:l[0],v:l[1],q:l[2],r:l[3]};
+      if(l&&typeof l==='object')return {id:l.id,v:l.v,q:l.q,r:l.r};
+      return {id:0,v:'',q:'',r:''};
+    });
     if(!rowsEB.length)rowsEB=[{id:0,v:'',q:'',r:''}];
     var isOld=b.date<iso();
     var h=top('Edit bill')+'<div class="det eb"><button class="back" data-a="cancel-edit" data-b="'+b.id+'">'+ic('back')+'Back to bill</button>';
-    h+='<div class="bd-hero"><div class="bv lg">'+E(b.vendor.replace(/^(M\/s\.?|Messrs\.?)\s+/i,'').charAt(0).toUpperCase())+'</div><div class="bd-info"><h2>Edit bill</h2><div class="bl-tags"><span class="bl-chip">Bill '+E(b.no)+'</span><span class="bl-chip">'+E(b.vendor)+'</span><span class="bl-chip">ID #'+b.id+'</span></div></div><div class="bd-amt"><b id="eb-total">'+money(bt(b).t)+'</b><small>Total after changes</small></div></div>';
+    h+='<div class="bd-hero"><div class="bv lg">'+E((b.vendor || b.sup || 'V').replace(/^(M\/s\.?|Messrs\.?)\s+/i,'').charAt(0).toUpperCase())+'</div><div class="bd-info"><h2>Edit bill</h2><div class="bl-tags"><span class="bl-chip">Bill '+E(b.no)+'</span><span class="bl-chip">'+E(b.vendor||b.sup||'Vendor')+'</span><span class="bl-chip">ID #'+b.id+'</span></div></div><div class="bd-amt"><b id="eb-total">'+money(bt(b).t)+'</b><small>Total after changes</small></div></div>';
     h+='<div class="eb-card"><div class="eb-title"><span>Bill details</span></div><div class="fg">'
-      +fld('eb-no','Bill number','text','e.g. BA/2026/0450',E(b.no))
-      +fld('eb-ip','In-pass number','text','e.g. IP-130',E(b.ip))
-      +fld('eb-vendor','Vendor','text','Vendor name',E(b.vendor))
+      +fld('eb-no','Bill number','text','e.g. BA/2026/0450',E(b.no||''))
+      +fld('eb-ip','In-pass number','text','e.g. IP-130',E(b.ip||b.inpass||''))
+      +fld('eb-vendor','Vendor','text','Vendor name',E(b.vendor||b.sup||''))
       +fld('eb-date','Bill date','date','',b.date)
       +fld('eb-gst','GST %','number','12',b.gst)
       +fld('eb-disc','Discount %','number','0',b.disc)
