@@ -3362,16 +3362,9 @@ window.dpsApi=async function(path,opts){opts=opts||{};
     role=meData.role;
     var name=meData.role==='admin'?'Administrator':meData.role==='principal'?'Principal':meData.name;
     try{sessionStorage.setItem('dps_session',JSON.stringify({role:role,name:name,t:Date.now()}))}catch(e){}
-    window.__sess={role:role,name:name};busy=false;buf='';sfx('ok');
-    if(note){
-      $('#doneT').textContent='Welcome, '+name;
-      $('#doneP').textContent=note;
-      $('#done').hidden=false;
-      clearTimeout(window.__autoGo);
-      window.__autoGo=setTimeout(function(){var d=$('#done');if(d&&!d.hidden&&window.__sess)window.__enter(window.__sess)},600);
-      return;
-    }
+    window.__sess={role:role,name:name};busy=false;buf='';first='';mode='login';sfx('ok');
     window.__enter(window.__sess);
+    if(note)notify(note);
   }
   $('#go').addEventListener('click',function(){clearTimeout(window.__autoGo);window.__enter(window.__sess)});
   /* ---------- Screen-lock sign-in (WebAuthn platform authenticator) ---------- */
@@ -3454,6 +3447,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
   })();
 
   window.__loginReset=function(){clearTimeout(window.__autoGo);if(window.__dlReset)window.__dlReset();$('#done').hidden=true;busy=false;buf='';first='';mode='login';method='pw';$('#pw').value='';setErr('');render()};
+  window.__promptNewPin=function(meData){if(!meData)return;role=meData.role;if(role==='teacher'&&meData.name)$('#name').value=meData.name;mode='new';method='pin';buf='';first='';busy=false;render()};
 
   (function(){
     var art=$('#art');
@@ -5812,10 +5806,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       if(me.ok&&me.data&&me.data.role){
         if(me.data.mustSetPin){
           window.__me=me.data;
-          role=me.data.role;
-          if(role==='teacher'&&me.data.name){var sel=document.getElementById('name');if(sel)sel.value=me.data.name}
-          mode='new';method='pin';buf='';busy=false;
-          render();
+          window.__promptNewPin&&window.__promptNewPin(me.data);
           return;
         }
         window.__me=me.data;
