@@ -3756,20 +3756,18 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       h += '</div>';
 
     } else if(settingsTab==='password'){
-      var sessInfo=JSON.parse(sessionStorage.getItem('dps_session')||'{}');
-      var userRole = sessInfo.role || role || 'admin';
-      var userName = sessInfo.name || (userRole==='admin'?'Administrator':userRole==='principal'?'Principal':'Teacher');
+      var sessInfo = {};
+      try{ sessInfo = JSON.parse(sessionStorage.getItem('dps_session') || '{}') || {}; }catch(e){}
+      var userRole = (window.__me && window.__me.role) || (window.__sess && window.__sess.role) || (typeof tTeacherName !== 'undefined' && tTeacherName ? 'teacher' : '') || sessInfo.role || getRole() || 'admin';
+      var userName = (window.__me && window.__me.name) || (window.__sess && window.__sess.name) || (typeof tTeacherName !== 'undefined' && tTeacherName ? tTeacherName : '') || sessInfo.name || (userRole==='admin'?'Administrator':userRole==='principal'?'Principal':'Teacher');
+      var profileLabel = userRole === 'teacher' ? ('Teacher: ' + userName) : (userRole === 'principal' ? 'Principal' : 'Administrator');
 
       h += '<h3 class="settings-section-title">Change Password &amp; PIN</h3>'
         + '<p class="settings-section-sub">Update authentication credentials for secure portal access.</p>'
         + '<div class="settings-card">'
           + '<div class="fg" style="margin-bottom:14px">'
             + '<label class="fl">Account Profile'
-              + '<select id="pw-target-role" '+(userRole==='admin'?'':'disabled')+'>'
-                + '<option value="admin" '+(userRole==='admin'?'selected':'')+'>Administrator (Admin)</option>'
-                + '<option value="principal" '+(userRole==='principal'?'selected':'')+'>Principal</option>'
-                + (fac||[]).map(function(f){ return '<option value="teacher:'+E(f)+'" '+(userName===f?'selected':'')+'>Teacher: '+E(f)+'</option>'; }).join('')
-              + '</select>'
+              + '<input id="pw-target-role" type="text" value="' + E(profileLabel) + '" readonly disabled style="font-weight:600;background:var(--bg2,rgba(0,0,0,0.04));cursor:default">'
             + '</label>'
           + '</div>'
           + '<div class="fg">'
@@ -3777,7 +3775,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
               + '<input id="pw-current" type="password" placeholder="Enter existing password or 4-digit PIN" autocomplete="current-password">'
             + '</label>'
             + '<label class="fl">New Password'
-              + '<input id="pw-new" type="password" placeholder="Minimum 4 characters" autocomplete="new-password">'
+              + '<input id="pw-new" type="password" placeholder="Minimum 6 characters" autocomplete="new-password">'
             + '</label>'
             + '<label class="fl">Confirm New Password'
               + '<input id="pw-confirm" type="password" placeholder="Re-enter new password" autocomplete="new-password">'

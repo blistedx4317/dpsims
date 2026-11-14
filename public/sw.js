@@ -1,5 +1,5 @@
 /* DPS Amrapali IMS - Progressive Web App Service Worker */
-const CACHE_NAME = 'dps-ims-v1.0.7';
+const CACHE_NAME = 'dps-ims-v1.0.8';
 
 const STATIC_ASSETS = [
   '/',
