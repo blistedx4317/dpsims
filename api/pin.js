@@ -8,5 +8,5 @@ module.exports = wrap(['POST'], async ({ store, user, body, json }) => {
   const f = { pin_hash: await A.hashSecret(body.pin), must_change: false };
   if (user.must_change) f.pw_hash = await A.hashSecret(A.tempPassword() + A.tempPassword()); // the temporary password stops working
   await store.updateUser(user.id, f);
-  json(200, { ok: true });
+  json(200, { ok: true, role: user.role, name: user.name, mustSetPin: false });
 }, { allowMustChange: true });

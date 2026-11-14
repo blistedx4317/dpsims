@@ -29,7 +29,7 @@ module.exports = wrap(['POST'], async ({ store, body, ip, res, json }) => {
   store.clearAttempt(key).catch(() => {});
   res.setHeader('Set-Cookie', A.makeCookie(u));
   const payload = { ok: true, role: u.role, name: u.name, mustSetPin: !!u.must_change };
-  if (stateObj && stateObj.data) {
+  if (!u.must_change && stateObj && stateObj.data) {
     payload.state = { version: stateObj.version, data: S.viewFor(u, stateObj.data) };
   }
   json(200, payload);

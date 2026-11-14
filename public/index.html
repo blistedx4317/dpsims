@@ -3218,27 +3218,29 @@ window.dpsApi=async function(path,opts){opts=opts||{};
   function dots(){var d=document.querySelectorAll('#dots i');d.forEach(function(x,i){x.classList.toggle('on',i<buf.length)})}
   function render(){
     var t=$('#title'),s=$('#sub');
-    $('#nameGroup').hidden=(role!=='teacher');
+    var isForcing=(mode==='new'||mode==='confirm');
+    $('#nameGroup').hidden=(role!=='teacher'||isForcing);
     var isPw=(method==='pw');
     var lock=!!(window.__dlLockOn&&window.__dlLockOn());
     $('#pwView').hidden=!isPw||lock;
     $('#pinView').hidden=isPw||lock;
     $('#lockView').hidden=!lock;
-    $('#userRow').hidden=(role==='teacher');
+    $('#userRow').hidden=(role==='teacher'||isForcing);
     $('#user').value=role==='admin'?'Admin':role==='principal'?'Principal':'';
     $('#L').classList.toggle('tpin',!isPw&&!lock);
     (function(){var mg=$('#msg'),f=$('#pwView'),b=f&&f.querySelector('button.btn');
       if(isPw&&!lock&&b){if(mg.parentNode!==f)f.insertBefore(mg,b)}
       else if(mg.parentNode===f){$('#lockView').insertAdjacentElement('afterend',mg)}})();
-    $('#swap').hidden=false;
+    $('#swap').hidden=isForcing||lock;
     $('#swap').textContent=isPw?'Use PIN instead':'Use password instead';
-    if(lock)$('#swap').hidden=true;
+    var segEl=$('#seg');if(segEl)segEl.hidden=isForcing;
     if(mode==='new'){
       t.textContent='Create a new PIN';
-      s.textContent='First sign-in: replace the default PIN';
+      var teacherName=$('#name').value;
+      s.textContent='First sign-in: set a personal 4-digit PIN'+(teacherName?' for '+teacherName:'');
     } else if(mode==='confirm'){
       t.textContent='Confirm new PIN';
-      s.textContent='Enter the same PIN again';
+      s.textContent='Enter the same 4-digit PIN again';
     } else {
       if(role==='admin'){
         t.textContent='Admin sign-in';
@@ -3300,7 +3302,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       var rl=await dpsApi('login',{body:{role:role,name:role==='teacher'?$('#name').value:'',method:'pin',secret:pin}});
       if(rl.ok){
         setLock({fails:0,until:0});
-        if(rl.data.mustSetPin){mode='new';buf='';busy=false;render();return}
+        if(rl.data.mustSetPin){mode='new';method='pin';buf='';busy=false;render();return}
         return success(rl.data);
       }
       buf='';busy=false;dots();shake($('#dots'));serverFail(rl,'pin');
@@ -3316,7 +3318,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       if(pin!==first){mode='new';first='';buf='';busy=false;render();shake($('#dots'));setErr('PINs did not match. Start again.');return}
       var rp=await dpsApi('pin',{body:{pin:pin}});
       if(!rp.ok){mode='new';first='';buf='';busy=false;render();shake($('#dots'));setErr((rp.data&&rp.data.error)||'Could not save the PIN. Please try again.');return}
-      return success('Your new PIN is saved.');
+      return success(rp.data||null,'Your new PIN is saved.');
     }
   }
 
@@ -5809,7 +5811,15 @@ window.dpsApi=async function(path,opts){opts=opts||{};
   (async function(){
     try{
       var me=await dpsApi('me');
-      if(me.ok&&me.data&&me.data.role&&!me.data.mustSetPin){
+      if(me.ok&&me.data&&me.data.role){
+        if(me.data.mustSetPin){
+          window.__me=me.data;
+          role=me.data.role;
+          if(role==='teacher'&&me.data.name){var sel=document.getElementById('name');if(sel)sel.value=me.data.name}
+          mode='new';method='pin';buf='';busy=false;
+          render();
+          return;
+        }
         window.__me=me.data;
         var ok=window.__dpsLoad?await window.__dpsLoad():true;
         if(!ok)return;
