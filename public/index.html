@@ -4923,17 +4923,18 @@ window.dpsApi=async function(path,opts){opts=opts||{};
     if(d.r){
       var r=reqs.filter(function(x){return x.id===+d.r})[0],role=getRole(),msg='',okm=true;
       if(!r)return;
-      if(d.s==='Verified'){
-        if(role!=='principal'||r.st!=='Pending')return;
+      if(d.s==='Verified'||(d.s==='Approved'&&role==='principal')){
+        var isPend=/^(pending|pend)/i.test(String(r.st||r.status||'').trim());
+        if(role!=='principal'||!isPend)return;
         var rj=[];
         r.it.forEach(function(x,i){var c=document.querySelector('.rq-ck[data-slip="'+r.id+'"][data-i="'+i+'"]');if(c&&!c.checked)rj.push(i)});
         if(rj.length===r.it.length){msg='All items are rejected. Use Decline to reject the whole slip, or accept at least one item.';okm=false}
         else{
-          r.st='Verified';r.pDate=iso();if(rj.length)r.rejP=rj;
+          r.st='Verified';r.status='Verified';r.pDate=iso();if(rj.length)r.rejP=rj;
           msg='Slip #'+slipNo(r.id)+' of '+r.by+' approved and sent to Admin for issue.'+(rj.length?' '+rj.length+' item'+(rj.length>1?'s were':' was')+' rejected.':'');
         }
       }else if(d.s==='Approved'){
-        if(role!=='admin'||r.st!=='Verified')return;
+        if(role!=='admin'||!(r.st==='Verified'||r.status==='Verified'))return;
         var qs=[],bad='',total=0,rjAl=[];
         r.it.forEach(function(x,i){
           if(bad)return;
