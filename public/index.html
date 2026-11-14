@@ -3278,7 +3278,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
     if(k==='del'){if(buf.length)sfx('del');buf=buf.slice(0,-1)}
     else if(buf.length<4){buf+=k;sfx('tap')}
     dots();
-    if(buf.length===4){busy=true;setTimeout(done4,160)}
+    if(buf.length===4){busy=true;done4()}
   }
   $('#keys').addEventListener('click',function(e){var b=e.target.closest('button');if(b)press(b.dataset.k)});
   document.addEventListener('keydown',function(e){
@@ -3301,7 +3301,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       if(rl.ok){
         setLock({fails:0,until:0});
         if(rl.data.mustSetPin){mode='new';buf='';busy=false;render();return}
-        return success();
+        return success(rl.data);
       }
       buf='';busy=false;dots();shake($('#dots'));serverFail(rl,'pin');
       return;
@@ -3337,26 +3337,39 @@ window.dpsApi=async function(path,opts){opts=opts||{};
     if(rr.ok){
       setLock({fails:0,until:0});
       if(rr.data.mustSetPin){mode='new';method='pin';buf='';busy=false;render();return}
-      return success();
+      return success(rr.data);
     }
     busy=false;$('#pw').value='';shake($('#pwView'));serverFail(rr,'pw');
   });
 
-  async function success(note){
-    var me=await dpsApi('me');
-    if(!me.ok||!me.data||!me.data.role){busy=false;setErr('Could not complete sign-in. Please try again.');return}
-    window.__me=me.data;
-    var loaded=window.__dpsLoad?await window.__dpsLoad():true;
-    if(!loaded){window.__me=null;busy=false;setErr('Signed in, but the data could not be loaded. Please try again.');return}
-    role=me.data.role;
-    var name=me.data.role==='admin'?'Administrator':me.data.role==='principal'?'Principal':me.data.name;
+  async function success(authData,note){
+    if(typeof authData==='string'&&!note){note=authData;authData=null}
+    var meData=(authData&&authData.role)?authData:null;
+    if(!meData){
+      var me=await dpsApi('me');
+      if(!me.ok||!me.data||!me.data.role){busy=false;setErr('Could not complete sign-in. Please try again.');return}
+      meData=me.data;
+    }
+    window.__me=meData;
+    if(authData&&authData.state&&authData.state.data){
+      dpsVer=authData.state.version;applyState(authData.state.data);dpsDirty=false;
+    }else{
+      var loaded=window.__dpsLoad?await window.__dpsLoad():true;
+      if(!loaded){window.__me=null;busy=false;setErr('Signed in, but the data could not be loaded. Please try again.');return}
+    }
+    role=meData.role;
+    var name=meData.role==='admin'?'Administrator':meData.role==='principal'?'Principal':meData.name;
     try{sessionStorage.setItem('dps_session',JSON.stringify({role:role,name:name,t:Date.now()}))}catch(e){}
-    $('#doneT').textContent='Welcome, '+name;
-    $('#doneP').textContent=note||(role==='admin'?'Full inventory control: bills, stock management, issuing and settings.':role==='principal'?'Complete oversight: view all stocks, bills & reports. Review and approve teacher requisitions.':'View stock and raise requisitions.');
-    window.__sess={role:role,name:name};$('#done').hidden=false;busy=false;buf='';sfx('ok');
-    clearTimeout(window.__autoGo);
-    if(window.__dlAfterLogin&&window.__dlAfterLogin())return;
-    window.__autoGo=setTimeout(function(){var d=$('#done');if(d&&!d.hidden&&window.__sess)window.__enter(window.__sess)},1300);
+    window.__sess={role:role,name:name};busy=false;buf='';sfx('ok');
+    if(note){
+      $('#doneT').textContent='Welcome, '+name;
+      $('#doneP').textContent=note;
+      $('#done').hidden=false;
+      clearTimeout(window.__autoGo);
+      window.__autoGo=setTimeout(function(){var d=$('#done');if(d&&!d.hidden&&window.__sess)window.__enter(window.__sess)},600);
+      return;
+    }
+    window.__enter(window.__sess);
   }
   $('#go').addEventListener('click',function(){clearTimeout(window.__autoGo);window.__enter(window.__sess)});
   /* ---------- Screen-lock sign-in (WebAuthn platform authenticator) ---------- */
@@ -5774,7 +5787,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
 </script>
 <script>(function(){
   var L=document.getElementById('L'),A=document.getElementById('A'),T=document.getElementById('T');
-  function swap(from,to){from.classList.add('leave');setTimeout(function(){from.hidden=true;from.classList.remove('leave');to.hidden=false;to.classList.add('enter');setTimeout(function(){to.classList.remove('enter')},650)},420)}
+  function swap(from,to){from.hidden=true;from.classList.remove('leave');to.hidden=false;to.classList.add('enter');setTimeout(function(){to.classList.remove('enter')},300)}
   window.__enter=function(s){
     if(!s)return;
     if(s.role==='admin'||s.role==='principal'){
