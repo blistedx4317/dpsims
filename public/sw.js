@@ -1,11 +1,14 @@
 /* DPS Amrapali IMS - Progressive Web App Service Worker */
-const CACHE_NAME = 'dps-ims-v1.0.1';
+const CACHE_NAME = 'dps-ims-v1.0.2';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
+  '/favicon.ico',
   '/favicon.png',
+  '/favicon-32x32.png',
+  '/favicon-16x16.png',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable-192.png',
@@ -112,3 +115,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
