@@ -3490,9 +3490,17 @@ window.dpsApi=async function(path,opts){opts=opts||{};
   seed();
   /* ---- shared data lives on the server (Neon). This device keeps only a working copy in memory. ---- */
   var dpsVer=0,dpsDirty=false,dpsSaving=false,dpsTimer=null;
+  function toArr(x){return Array.isArray(x)?x:(x&&typeof x==='object'?Object.values(x):(x!=null?[x]:[]))}
   function applyState(d){
     d=d||{};
     items=d.items||[];uid=d.uid||0;bills=d.bills||[];bid=d.bid||0;fac=d.fac||[];log=d.log||[];reqs=d.reqs||[];
+    reqs.forEach(function(r){
+      if(!r)return;
+      if(r.iss&&!Array.isArray(r.iss))r.iss=typeof r.iss==='object'?Object.values(r.iss):[r.iss];
+      if(r.ret&&!Array.isArray(r.ret))r.ret=typeof r.ret==='object'?Object.values(r.ret):[r.ret];
+      if(r.rejP&&!Array.isArray(r.rejP))r.rejP=typeof r.rejP==='object'?Object.values(r.rejP):[];
+      if(r.rejA&&!Array.isArray(r.rejA))r.rejA=typeof r.rejA==='object'?Object.values(r.rejA):[];
+    });
     window.__reqSeq=d.reqSeq||0;
     bills.forEach(function(b){if(b.stockAdded===undefined)b.stockAdded=!(b.date<iso())});
     if(d.sessionCfg)sessionCfg=Object.assign({},defaultSessionCfg,d.sessionCfg);
@@ -4240,7 +4248,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
     });
   }
   function rrUnits(r){return r.it.reduce(function(a,x){return a+(+x[2]||0)},0)}
-  function rrIssued(r){return (r.st==='Approved'&&r.iss)?r.iss.reduce(function(a,q){return a+(+q||0)},0):0}
+  function rrIssued(r){return (r.st==='Approved'&&r.iss)?toArr(r.iss).reduce(function(a,q){return a+(+q||0)},0):0}
   function rrItems(r){
     var n=r.it.map(function(x){var i=find(x[0]);return (i?i.name:'Item #'+x[0])+(x[1]&&x[1]!=='Standard'?' ('+x[1]+')':'')+' \u00d7'+x[2]});
     return E(n.length>3?n.slice(0,3).join(', ')+' +'+(n.length-3)+' more':n.join(', '));
@@ -4759,13 +4767,13 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       else if(role==='principal'&&r.st==='Verified'){note='You approved this'+(r.pDate?' on '+fmt(r.pDate):'')+'. It is now with Admin to issue.'}
       else if(r.st==='Approved'){note='Issued'+(r.iDate?' on '+fmt(r.iDate):'')+'. Stock was deducted.';if(role==='admin'&&reqRet!==r.id&&rqAnyLeft(r))actions='<button class="btn g" data-a="rq-retopen" data-slip="'+r.id+'">\u21A9 Return items</button>'}
       var remark=rqRemark(r);
-      var retTot=(r.ret||[]).reduce(function(a,b){return a+(+b||0)},0),issTot=(r.iss||[]).reduce(function(a,b){return a+(+b||0)},0);
+      var retTot=toArr(r.ret).reduce(function(a,b){return a+(+b||0)},0),issTot=toArr(r.iss).reduce(function(a,b){return a+(+b||0)},0);
       var retSum=retTot?' \u2022 returned <b>'+retTot+'</b> \u2022 net used <b>'+(issTot-retTot)+'</b>':'';
       var retPanel=(role==='admin'&&reqRet===r.id&&r.st==='Approved'&&rqAnyLeft(r))?'<div class="rq-retbar"><div class="rq-rethint">Enter how many came back in the <b>Return</b> boxes above. Returned items are added back to stock and noted on this slip.</div><div class="rq-remrow"><input type="text" class="rq-retnote" data-slip="'+r.id+'" placeholder="Remark (optional)\u2026"></div><div class="rq-btns"><button class="btn" data-a="rq-retok" data-slip="'+r.id+'">Confirm return</button><button class="btn g" data-a="rq-retx" data-slip="'+r.id+'">Cancel</button></div></div>':'';
       var retHist=(r.retLog&&r.retLog.length)?'<div class="rq-rethist"><b>Returned to stock</b>'+r.retLog.map(function(g){return '<div>'+(g.d?fmt(g.d)+' \u2022 ':'')+g.it.map(function(pq){var x=r.it[pq[0]],it=find(x[0]);return E((it?it.name:'Item')+' ('+x[1]+')')+' \u00D7 '+pq[1]}).join(', ')+(g.n?' \u2022 '+E(g.n):'')+'</div>'}).join('')+'</div>':'';
       return '<div class="rq-slip"><div class="rq-head"><div><b>Slip #'+slipNo(r.id)+'</b><span>'+(r.date?fmt(r.date):'')+'</span><div class="rq-purpose">Purpose: '+E(r.purpose||'School stationery')+'</div></div><div class="rq-hr">'+rqTag(r)+prBtn(r.id)+'</div></div>'
         +rqTrack(r)+bulk+'<div class="rq-lines">'+lines+'</div>'+retPanel+remBox
-        +'<div class="rq-foot"><span class="rq-sum">'+r.it.length+' item'+(r.it.length===1?'':'s')+' \u2022 '+((r.st==='Approved'&&r.iss)?'issued <b>'+r.iss.reduce(function(a,b){return a+(+b||0)},0)+'</b> of requested <b>'+tq+'</b>'+retSum:'total qty <b>'+tq+'</b>')+'</span>'+(actions?'<div class="rq-btns">'+actions+'</div>':'')+'</div>'
+        +'<div class="rq-foot"><span class="rq-sum">'+r.it.length+' item'+(r.it.length===1?'':'s')+' \u2022 '+((r.st==='Approved'&&r.iss)?'issued <b>'+toArr(r.iss).reduce(function(a,b){return a+(+b||0)},0)+'</b> of requested <b>'+tq+'</b>'+retSum:'total qty <b>'+tq+'</b>')+'</span>'+(actions?'<div class="rq-btns">'+actions+'</div>':'')+'</div>'
         +retHist+(remark?'<div class="rq-remark"><b>Remark from Admin</b>'+remark+'</div>':'')
         +(note?'<div class="rq-note">'+note+'</div>':'')+'</div>';
     }).join('');
