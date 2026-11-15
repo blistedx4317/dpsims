@@ -4586,8 +4586,11 @@ window.dpsApi=async function(path,opts){
     }
   }
 };
-/* wake Neon Postgres compute + serverless runtime on page load so PIN entry is instant */
-try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function(){})}catch(e){}
+/* wake Neon Postgres compute + serverless runtime on page load so PIN/Password entry is instant */
+try{
+  fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function(){});
+  fetch('/api/login',{method:'GET',credentials:'same-origin'}).catch(function(){});
+}catch(e){}
 </script>
 <script>
 (function(){

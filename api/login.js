@@ -3,7 +3,12 @@ const { wrap } = require('../lib/http');
 const A = require('../lib/auth');
 const S = require('../lib/state');
 
-module.exports = wrap(['POST'], async ({ store, body, ip, res, json }) => {
+module.exports = wrap(['GET', 'POST'], async ({ req, store, body, ip, res, json }) => {
+  if (req.method === 'GET') {
+    if (store.ping) await store.ping().catch(() => {});
+    return json(200, { ok: true, warm: true });
+  }
+
   const isDebug = process.env.DEBUG_LOGIN === '1';
   if (isDebug) console.time(`[LOGIN] total ip=${ip}`);
 
