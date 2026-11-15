@@ -4810,10 +4810,19 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
     var name=meData.role==='admin'?'Administrator':meData.role==='principal'?'Principal':meData.name;
     try{sessionStorage.setItem('dps_session',JSON.stringify({role:role,name:name,t:Date.now()}))}catch(e){}
     window.__sess={role:role,name:name};busy=false;buf='';first='';mode='login';sfx('ok');
-    window.__dpsStateStatus='loading';
+    if(meData.state&&meData.state.data){
+      dpsVer=meData.state.version;
+      applyState(meData.state.data);
+      dpsDirty=false;
+      window.__dpsStateStatus='loaded';
+    }else{
+      window.__dpsStateStatus='loading';
+    }
     window.__enter(window.__sess);
     if(note)notify(note);
-    window.__dpsLoadStateBackground&&window.__dpsLoadStateBackground();
+    if(window.__dpsStateStatus!=='loaded'){
+      window.__dpsLoadStateBackground&&window.__dpsLoadStateBackground();
+    }
   }
   $('#go').addEventListener('click',function(){clearTimeout(window.__autoGo);window.__enter(window.__sess)});
   /* ---------- Screen-lock sign-in (WebAuthn platform authenticator) ---------- */
@@ -7504,14 +7513,23 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
         }
         window.__me=me.data;
         L.hidden=true;
-        window.__dpsStateStatus='loading';
+        if(me.data.state&&me.data.state.data){
+          dpsVer=me.data.state.version;
+          applyState(me.data.state.data);
+          dpsDirty=false;
+          window.__dpsStateStatus='loaded';
+        }else{
+          window.__dpsStateStatus='loading';
+        }
         if(me.data.role==='admin'||me.data.role==='principal'){
           window.__adminReset&&window.__adminReset();A.hidden=false;
         }else{
           window.__renderTeacherPanel&&window.__renderTeacherPanel(me.data.name);
           T.hidden=false;
         }
-        window.__dpsLoadStateBackground&&window.__dpsLoadStateBackground();
+        if(window.__dpsStateStatus!=='loaded'){
+          window.__dpsLoadStateBackground&&window.__dpsLoadStateBackground();
+        }
       }
     }catch(e){}
   })();

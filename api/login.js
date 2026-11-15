@@ -1,6 +1,7 @@
 'use strict';
 const { wrap } = require('../lib/http');
 const A = require('../lib/auth');
+const S = require('../lib/state');
 
 module.exports = wrap(['POST'], async ({ store, body, ip, res, json }) => {
   const isDebug = process.env.DEBUG_LOGIN === '1';
@@ -14,9 +15,10 @@ module.exports = wrap(['POST'], async ({ store, body, ip, res, json }) => {
 
   const key = `${ip}|${role}|${name}`;
   if (isDebug) console.time('[LOGIN] db_lookup');
-  const [wait, u] = await Promise.all([
+  const [wait, u, stateObj] = await Promise.all([
     A.checkLock(store, key),
-    store.findUser(role, name)
+    store.findUser(role, name),
+    store.getState().catch(() => null)
   ]);
   if (isDebug) console.timeEnd('[LOGIN] db_lookup');
 
@@ -40,5 +42,9 @@ module.exports = wrap(['POST'], async ({ store, body, ip, res, json }) => {
   store.clearAttempt(key).catch(() => {});
   res.setHeader('Set-Cookie', A.makeCookie(u));
   if (isDebug) console.timeEnd(`[LOGIN] total ip=${ip}`);
-  json(200, { ok: true, role: u.role, name: u.name, mustSetPin: !!u.must_change });
+  const payload = { ok: true, role: u.role, name: u.name, mustSetPin: !!u.must_change };
+  if (stateObj && stateObj.data && !u.must_change) {
+    payload.state = { version: stateObj.version, data: S.viewFor(u, stateObj.data) };
+  }
+  json(200, payload);
 }, { public: true, skipSession: true });

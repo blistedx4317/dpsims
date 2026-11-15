@@ -41,7 +41,7 @@ server.listen(0, async () => {
     ok((await anon('POST', '/api/login', { role: 'admin', method: 'pw', secret: 'admin123' })).s === 401, 'old default password rejected');
     ok((await anon('POST', '/api/login', { role: 'admin', method: 'pw', secret: 'Admin@DPS26' })).s === 401, 'old demo password rejected');
     let r = await admin('POST', '/api/login', { role: 'admin', method: 'pw', secret: 'Secret#123' });
-    ok(r.s === 200 && r.j.role === 'admin' && !r.j.mustSetPin, 'admin signs in with password');
+    ok(r.s === 200 && r.j.role === 'admin' && !r.j.mustSetPin && r.j.state && r.j.state.data, 'admin signs in with password');
     ok((await princ('POST', '/api/login', { role: 'principal', method: 'pin', secret: '7391' })).s === 200, 'principal signs in with PIN');
     ok((await anon('GET', '/api/state', null, { Cookie: 'dps_sess=abc.def' })).s === 401, 'forged cookie rejected');
     ok((await admin('POST', '/api/state', null, { Origin: 'https://evil.example' })).s === 405 || true, 'method check');
@@ -61,7 +61,10 @@ server.listen(0, async () => {
     ok((await t1('POST', '/api/pin', { pin: '5826' })).s === 200, 'teacher sets own PIN');
     ok((await anon('POST', '/api/login', { role: 'teacher', name: 'Ms Rao', method: 'pw', secret: tmpPw })).s === 401, 'temporary password stops working');
     const t1b = client(port);
-    ok((await t1b('POST', '/api/login', { role: 'teacher', name: 'Ms Rao', method: 'pin', secret: '5826' })).j.mustSetPin === false, 'teacher signs in with new PIN');
+    const tLog = await t1b('POST', '/api/login', { role: 'teacher', name: 'Ms Rao', method: 'pin', secret: '5826' });
+    ok(tLog.j.mustSetPin === false && tLog.j.state && tLog.j.state.data && tLog.j.state.data.bills.length === 0, 'teacher signs in with new PIN');
+    const meCheck = await t1b('GET', '/api/me');
+    ok(meCheck.s === 200 && meCheck.j.state && meCheck.j.state.data.bills.length === 0, 'me endpoint returns isolated state in 1 RTT');
     Object.assign(t1, {}); // t1 still holds its first cookie
     r = await t2('POST', '/api/login', { role: 'teacher', name: 'Mr Khan', method: 'pin', secret: kh.j.pin });
     await t2('POST', '/api/pin', { pin: '9042' });
