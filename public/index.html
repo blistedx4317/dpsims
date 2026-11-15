@@ -3136,10 +3136,20 @@ html[data-theme="dgwhite"] #dps-splash .sp-bar i{background:#0f7a58}
 window.dpsApi=async function(path,opts){opts=opts||{};
   var o={method:opts.method||(opts.body?'POST':'GET'),credentials:'same-origin',headers:{}};
   if(opts.body){o.headers['Content-Type']='application/json';o.body=JSON.stringify(opts.body)}
-  try{var r=await fetch('/api/'+path,o),j={};try{j=await r.json()}catch(e){}
+  var ctrl=window.AbortController?new AbortController():null;
+  if(ctrl)o.signal=ctrl.signal;
+  var tm=ctrl?setTimeout(function(){try{ctrl.abort()}catch(e){}},opts.timeout||12000):null;
+  try{var r=await fetch('/api/'+path,o),j={};
+    if(tm)clearTimeout(tm);
+    try{j=await r.json()}catch(e){}
     return {ok:r.ok,status:r.status,data:j}}
-  catch(e){return {ok:false,status:0,data:{error:'No connection to the server. Check your internet and try again.'}}}
+  catch(e){
+    if(tm)clearTimeout(tm);
+    var isAbort=e&&(e.name==='AbortError'||e.code===20);
+    return {ok:false,status:0,data:{error:isAbort?'Request timed out. Please try again.':'No connection to the server. Check your internet and try again.'}}}
 };
+/* wake Neon Postgres compute + serverless runtime on page load so PIN entry is instant */
+try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function(){})}catch(e){}
 </script>
 <script>
 (function(){
@@ -3299,7 +3309,9 @@ window.dpsApi=async function(path,opts){opts=opts||{};
   async function done4(){
     var pin=buf,ok=false;
     if(mode==='login'){
+      var dEl=document.getElementById('dots');if(dEl)dEl.classList.add('verifying');
       var rl=await dpsApi('login',{body:{role:role,name:role==='teacher'?$('#name').value:'',method:'pin',secret:pin}});
+      if(dEl)dEl.classList.remove('verifying');
       if(rl.ok){
         setLock({fails:0,until:0});
         if(rl.data.mustSetPin){mode='new';method='pin';buf='';busy=false;render();return}
@@ -3335,7 +3347,10 @@ window.dpsApi=async function(path,opts){opts=opts||{};
     }
     if(!v){setErr('Kindly enter your password.');notify('Kindly enter your password.');shake($('#pwView'));return}
     busy=true;
+    var pwBtn=document.querySelector('#pwView button[type="submit"]')||document.querySelector('#pwView button.btn');
+    if(pwBtn){pwBtn.disabled=true;pwBtn.dataset.origText=pwBtn.textContent;pwBtn.textContent='Signing in...'}
     var rr=await dpsApi('login',{body:{role:role,name:role==='teacher'?$('#name').value:'',method:'pw',secret:v}});
+    if(pwBtn){pwBtn.disabled=false;if(pwBtn.dataset.origText)pwBtn.textContent=pwBtn.dataset.origText}
     if(rr.ok){
       setLock({fails:0,until:0});
       if(rr.data.mustSetPin){mode='new';method='pin';buf='';busy=false;render();return}
@@ -3353,18 +3368,14 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       meData=me.data;
     }
     window.__me=meData;
-    if(authData&&authData.state&&authData.state.data){
-      dpsVer=authData.state.version;applyState(authData.state.data);dpsDirty=false;
-    }else{
-      var loaded=window.__dpsLoad?await window.__dpsLoad():true;
-      if(!loaded){window.__me=null;busy=false;setErr('Signed in, but the data could not be loaded. Please try again.');return}
-    }
     role=meData.role;
     var name=meData.role==='admin'?'Administrator':meData.role==='principal'?'Principal':meData.name;
     try{sessionStorage.setItem('dps_session',JSON.stringify({role:role,name:name,t:Date.now()}))}catch(e){}
     window.__sess={role:role,name:name};busy=false;buf='';first='';mode='login';sfx('ok');
+    window.__dpsStateStatus='loading';
     window.__enter(window.__sess);
     if(note)notify(note);
+    window.__dpsLoadStateBackground&&window.__dpsLoadStateBackground();
   }
   $('#go').addEventListener('click',function(){clearTimeout(window.__autoGo);window.__enter(window.__sess)});
   /* ---------- Screen-lock sign-in (WebAuthn platform authenticator) ---------- */
@@ -3536,11 +3547,29 @@ window.dpsApi=async function(path,opts){opts=opts||{};
     });
     if(d.sessionCfg)sessionCfg=Object.assign({},defaultSessionCfg,d.sessionCfg);
   }
-  window.__dpsLoad=async function(){
-    var r=await dpsApi('state');
-    if(!r.ok)return false;
-    dpsVer=r.data.version;applyState(r.data.data);dpsDirty=false;return true;
+  window.__dpsStateStatus='idle';
+  window.__dpsLoadStateBackground=async function(){
+    if(!window.__me)return false;
+    window.__dpsStateStatus='loading';
+    var r=await dpsApi('state',{timeout:15000});
+    if(r.ok&&r.data&&r.data.data){
+      dpsVer=r.data.version;
+      applyState(r.data.data);
+      dpsDirty=false;
+      window.__dpsStateStatus='loaded';
+      dpsRedraw();
+      return true;
+    }
+    window.__dpsStateStatus='error';
+    dpsRedraw();
+    return false;
   };
+  window.__dpsRetryLoad=function(){
+    window.__dpsStateStatus='loading';
+    dpsRedraw();
+    window.__dpsLoadStateBackground();
+  };
+  window.__dpsLoad=window.__dpsLoadStateBackground;
   window.__dpsClear=function(){seed();sessionCfg=Object.assign({},defaultSessionCfg);window.__reqSeq=0;dpsDirty=false};
   function sessExpired(){alert('Your session has ended. Please sign in again.');location.reload()}
   async function flush(){
@@ -3574,7 +3603,7 @@ window.dpsApi=async function(path,opts){opts=opts||{};
     }catch(e){}
   }
   setInterval(async function(){
-    if(!window.__me||dpsDirty||dpsSaving||document.hidden)return;
+    if(!window.__me||window.__dpsStateStatus!=='loaded'||dpsDirty||dpsSaving||document.hidden)return;
     var r=await dpsApi('state?since='+dpsVer);
     if(r.status===401){sessExpired();return}
     if(!r.ok||r.data.unchanged||dpsDirty||dpsSaving)return;
@@ -3883,7 +3912,39 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       +'<div class="nxs-jar" style="--c1:'+shade(c,.18)+';--c2:'+shade(c,-.34)+'"><i class="cap"></i><div class="bd"><em>'+E(it.cat)+'</em><b>'+ini+'</b></div></div>'
       +'<span class="nxs-plus" aria-hidden="true">\u203a</span></div>';
   }
+  function renderAdminSkeleton(){
+    var h=top(cat==='All'?'Stock':E(cat));
+    h+='<div class="kp" style="margin-bottom:20px">';
+    for(var i=0;i<5;i++){
+      h+='<div class="c dps-skel" style="height:76px;border-radius:12px;opacity:0.6"></div>';
+    }
+    h+='</div>';
+    h+='<div class="dps-skel" style="width:140px;height:24px;margin-bottom:16px;border-radius:6px"></div>';
+    h+='<div class="sp-grid">';
+    for(var j=0;j<8;j++){
+      h+='<div class="sp-card dps-skel dps-skel-card" style="height:190px"></div>';
+    }
+    h+='</div>';
+    return h;
+  }
+  function renderAdminError(){
+    var h=top('Stock');
+    h+='<div class="empty" style="padding:48px 20px;text-align:center">';
+    h+='<div style="font-size:16px;font-weight:600;margin-bottom:8px">Unable to load inventory data</div>';
+    h+='<p style="color:var(--muted);font-size:13.5px;margin-bottom:18px">The connection timed out or is slow. Your session is active.</p>';
+    h+='<button type="button" class="btn btn-primary" onclick="window.__dpsRetryLoad()" style="display:inline-flex;align-items:center;gap:8px;padding:9px 20px;border-radius:10px;cursor:pointer">Retry loading</button>';
+    h+='</div>';
+    return h;
+  }
   function stockView(){
+    if(window.__dpsStateStatus==='loading'){
+      $('#main').innerHTML=renderAdminSkeleton();
+      return;
+    }
+    if(window.__dpsStateStatus==='error'){
+      $('#main').innerHTML=renderAdminError();
+      return;
+    }
     var SC=items.filter(function(i){return cat==='All'||i.cat===cat}),inSC=function(l){var x=find(l.id);return !!x&&(cat==='All'||x.cat===cat)};
     var units=SC.reduce(function(a,i){return a+tot(i)},0),low=SC.filter(function(i){return stat(i)==='low'}).length,out=SC.filter(function(i){return stat(i)==='out'}).length,iss=log.filter(function(l){return l.t==='out'&&inSC(l)}).reduce(function(a,l){return a+l.q},0);
     var f=list();
@@ -5226,7 +5287,27 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       +'<div class="nxs-jar" style="--c1:'+shade(c,.18)+';--c2:'+shade(c,-.34)+'"><i class="cap"></i><div class="bd"><em>'+E(it.cat)+'</em><b>'+ini+'</b></div></div>'
       +'<span class="nxs-plus" aria-hidden="true">'+(inq?inq:'+')+'</span></div>';
   }
+  function renderTeacherSkeleton(){
+    var h='<div class="t-search-bar"><div class="dps-skel" style="height:44px;border-radius:12px;margin-bottom:12px"></div>';
+    h+='<div style="display:flex;gap:8px;overflow:hidden"><div class="dps-skel" style="width:60px;height:32px;border-radius:16px"></div><div class="dps-skel" style="width:90px;height:32px;border-radius:16px"></div><div class="dps-skel" style="width:80px;height:32px;border-radius:16px"></div></div></div>';
+    h+='<div class="sp-grid" style="margin-top:16px">';
+    for(var j=0;j<6;j++){
+      h+='<div class="sp-card dps-skel dps-skel-card" style="height:190px"></div>';
+    }
+    h+='</div>';
+    return h;
+  }
+  function renderTeacherError(){
+    var h='<div class="t-empty" style="padding:48px 20px;text-align:center">';
+    h+='<h3 style="margin:0 0 8px">Unable to load inventory data</h3>';
+    h+='<p style="color:var(--muted);font-size:13.5px;margin-bottom:18px">The connection timed out or is slow. Your session is active.</p>';
+    h+='<button type="button" class="t-btn t-btn-primary" onclick="window.__dpsRetryLoad()" style="display:inline-flex;align-items:center;gap:8px;padding:9px 20px;border-radius:10px;cursor:pointer">Retry loading</button>';
+    h+='</div>';
+    return h;
+  }
   function renderShop(){
+    if(window.__dpsStateStatus==='loading')return renderTeacherSkeleton();
+    if(window.__dpsStateStatus==='error')return renderTeacherError();
     var allCats=['All'].concat(cats());
     var filtered=items.filter(function(i){
       var mc=(tCat==='All'||i.cat===tCat);
@@ -5414,6 +5495,8 @@ window.dpsApi=async function(path,opts){opts=opts||{};
       +'<div class="sp-step-i '+s3+'"><i>'+(s3==='done'?'\u2713':(s3==='bad'?'\u2715':''))+'</i><span>'+l3+'</span></div></div>';
   }
   function renderTeacherMySlipsView(){
+    if(window.__dpsStateStatus==='loading')return renderTeacherSkeleton();
+    if(window.__dpsStateStatus==='error')return renderTeacherError();
     var tName=getTeacherName();
     var mySlips=(reqs||[]).filter(function(r){return r.by===tName});
     var pc=mySlips.filter(function(r){return r.st==='Pending'||r.st==='Verified'}).length;
@@ -5810,15 +5893,15 @@ window.dpsApi=async function(path,opts){opts=opts||{};
           return;
         }
         window.__me=me.data;
-        var ok=window.__dpsLoad?await window.__dpsLoad():true;
-        if(!ok)return;
         L.hidden=true;
+        window.__dpsStateStatus='loading';
         if(me.data.role==='admin'||me.data.role==='principal'){
           window.__adminReset&&window.__adminReset();A.hidden=false;
         }else{
           window.__renderTeacherPanel&&window.__renderTeacherPanel(me.data.name);
           T.hidden=false;
         }
+        window.__dpsLoadStateBackground&&window.__dpsLoadStateBackground();
       }
     }catch(e){}
   })();
@@ -7489,6 +7572,10 @@ html body #L#L#L#L[data-theme="dgwhite"] .msg:not(:empty){background:rgba(217,58
     padding: 12px 14px;
   }
 }
+@keyframes dpsShimmer{0%{opacity:.38}50%{opacity:.82}100%{opacity:.38}}
+.dps-skel{animation:dpsShimmer 1.5s ease-in-out infinite!important;background:var(--soft,rgba(255,255,255,.07))!important;border-radius:12px;position:relative;overflow:hidden}
+.dps-skel-card{min-height:160px;border:1px solid var(--line,rgba(255,255,255,.08))!important}
+#dots.verifying i{animation:pulseDot .5s ease-in-out infinite alternate!important}
 </style>
 
 <div id="pwa-install-banner" style="display:none" role="dialog" aria-label="Install DPS IMS Application">

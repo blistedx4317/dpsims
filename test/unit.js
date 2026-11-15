@@ -123,6 +123,8 @@ server.listen(0, async () => {
     ok((await t2b('GET', '/api/state')).s === 401 && !(await anon('GET', '/api/teachers')).j.names.includes('Mr Khan'), 'deleted teacher cannot sign in and leaves the list');
     ok((await princ('POST', '/api/users', { action: 'reset', name: 'Ms Rao' })).s === 403, 'principal cannot manage passwords');
     console.log('Assets');
+    r = await anon('GET', '/api/health');
+    ok(r.s === 200 && r.j.ok === true, 'health endpoint returns fast');
     r = await admin('POST', '/api/assets', { key: 'test-font', contentType: 'text/css', data: 'body { color: red; }' });
     ok(r.s === 200 && r.j.ok === true, 'admin can upload asset');
     r = await anon('GET', '/api/assets?key=test-font');
