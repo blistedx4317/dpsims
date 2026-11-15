@@ -9229,18 +9229,16 @@ html body #L#L#L#L[data-theme="dgwhite"] .msg:not(:empty){background:rgba(217,58
     window.addEventListener('load', function() {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(function(reg) {
-          console.log('[PWA] Service Worker registered with scope:', reg.scope);
+          try { reg.update(); } catch (e) {}
         })
-        .catch(function(err) {
-          console.warn('[PWA] Service Worker registration failed:', err);
-        });
+        .catch(function(err) {});
     });
   }
 
   // 2. Standalone Check (already installed or running inside PWA container)
   var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                      window.navigator.standalone === true ||
-                     document.referrer.includes('android-app://');
+                     (document.referrer && document.referrer.includes('android-app://'));
 
   if (isStandalone) {
     console.log('[PWA] Running in standalone PWA mode');

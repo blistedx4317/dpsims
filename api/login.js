@@ -5,7 +5,10 @@ const S = require('../lib/state');
 
 module.exports = wrap(['GET', 'POST'], async ({ req, store, body, ip, res, json }) => {
   if (req.method === 'GET') {
-    if (store.ping) await store.ping().catch(() => {});
+    await Promise.all([
+      store.listUsers().catch(() => {}),
+      store.getState().catch(() => {})
+    ]);
     return json(200, { ok: true, warm: true });
   }
 
