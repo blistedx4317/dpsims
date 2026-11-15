@@ -7512,7 +7512,8 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
           return;
         }
         window.__me=me.data;
-        L.hidden=true;
+        var rName=me.data.role==='admin'?'Administrator':me.data.role==='principal'?'Principal':me.data.name;
+        window.__sess={role:me.data.role,name:rName};
         if(me.data.state&&me.data.state.data){
           dpsVer=me.data.state.version;
           applyState(me.data.state.data);
@@ -7521,12 +7522,7 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
         }else{
           window.__dpsStateStatus='loading';
         }
-        if(me.data.role==='admin'||me.data.role==='principal'){
-          window.__adminReset&&window.__adminReset();A.hidden=false;
-        }else{
-          window.__renderTeacherPanel&&window.__renderTeacherPanel(me.data.name);
-          T.hidden=false;
-        }
+        window.__enter(window.__sess);
         if(window.__dpsStateStatus!=='loaded'){
           window.__dpsLoadStateBackground&&window.__dpsLoadStateBackground();
         }

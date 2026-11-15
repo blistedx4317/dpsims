@@ -1,5 +1,5 @@
 /* DPS Amrapali IMS - Progressive Web App Service Worker */
-const CACHE_NAME = 'dps-ims-v1.0.14';
+const CACHE_NAME = 'dps-ims-v1.0.15';
 
 const STATIC_ASSETS = [
   '/',
@@ -18,13 +18,20 @@ const STATIC_ASSETS = [
   '/api/assets?key=logo'
 ];
 
-// Install: Cache critical shell assets
+// Install: Cache critical shell assets safely
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[SW] Pre-caching non-fatal issue:', err);
-      });
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const url of STATIC_ASSETS) {
+        try {
+          const res = await fetch(url, { cache: 'no-cache' });
+          if (res && res.status === 200) {
+            await cache.put(url, res);
+          }
+        } catch (e) {
+          // non-fatal
+        }
+      }
     }).then(() => self.skipWaiting())
   );
 });
@@ -59,11 +66,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 1. Navigation requests (App Shell): Network first, fallback to cached index.html
+  // 1. Navigation requests (App Shell): Always try network first, then cache, then fallback. NEVER return undefined!
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => {
-        return caches.match('/index.html') || caches.match('/');
+      fetch(req).catch(async () => {
+        const cached = (await caches.match('/index.html')) || (await caches.match('/'));
+        if (cached) return cached;
+        return fetch('/index.html').catch(() => {
+          return new Response(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>DPS IMS</title><meta http-equiv="refresh" content="2"></head><body style="font-family:sans-serif;text-align:center;padding:50px;background:#f5f8f6"><h2>Connecting to DPS IMS...</h2><p>Please wait a moment while the portal connects.</p></body></html>',
+            { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
+        });
       })
     );
     return;
@@ -86,33 +100,22 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
           }
           return response;
+        }).catch(() => new Response('', { status: 404 }));
+      })
+    );
+    return;
+  }
+
+  // 3. API Requests: Network first, never return invalid response
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(req).catch(() => {
+        return new Response(JSON.stringify({ error: 'Network error. Please try again.' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
         });
       })
     );
     return;
   }
-
-  // 3. API Requests: Network first, fallback to cache
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(req).then((response) => {
-        if (response && response.status === 200 && url.pathname === '/api/teachers') {
-          const respClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
-        }
-        return response;
-      }).catch(() => {
-        return caches.match(req);
-      })
-    );
-    return;
-  }
-
-  // Default: Network with Cache fallback
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      return cached || fetch(req);
-    })
-  );
 });
-
