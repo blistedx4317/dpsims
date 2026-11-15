@@ -4810,11 +4810,8 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
     var name=meData.role==='admin'?'Administrator':meData.role==='principal'?'Principal':meData.name;
     try{sessionStorage.setItem('dps_session',JSON.stringify({role:role,name:name,t:Date.now()}))}catch(e){}
     window.__sess={role:role,name:name};busy=false;buf='';first='';mode='login';sfx('ok');
-    if(meData.state&&meData.state.data){
-      dpsVer=meData.state.version;
-      applyState(meData.state.data);
-      dpsDirty=false;
-      window.__dpsStateStatus='loaded';
+    if(meData.state&&window.__dpsApplyState){
+      window.__dpsApplyState(meData.state);
     }else{
       window.__dpsStateStatus='loading';
     }
@@ -5010,6 +5007,15 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
     window.__dpsStateStatus='error';
     dpsRedraw();
     return false;
+  };
+  window.__dpsApplyState=function(s){
+    if(!s||!s.data)return false;
+    dpsVer=s.version||dpsVer;
+    applyState(s.data);
+    dpsDirty=false;
+    window.__dpsStateStatus='loaded';
+    dpsRedraw();
+    return true;
   };
   window.__dpsRetryLoad=function(){
     window.__dpsStateStatus='loading';
@@ -7514,11 +7520,8 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
         window.__me=me.data;
         var rName=me.data.role==='admin'?'Administrator':me.data.role==='principal'?'Principal':me.data.name;
         window.__sess={role:me.data.role,name:rName};
-        if(me.data.state&&me.data.state.data){
-          dpsVer=me.data.state.version;
-          applyState(me.data.state.data);
-          dpsDirty=false;
-          window.__dpsStateStatus='loaded';
+        if(me.data.state&&window.__dpsApplyState){
+          window.__dpsApplyState(me.data.state);
         }else{
           window.__dpsStateStatus='loading';
         }
