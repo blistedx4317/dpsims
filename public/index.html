@@ -2908,6 +2908,272 @@ html body #T#T#T#T[data-theme="dgwhite"] .sp-track .sp-bar.done{background:#2f7d
 </style>
 
 <style id="teacher-panel-dashboard-css">
+
+/* ==========================================================================
+   Teacher Panel Responsive Fixes: Mobile Cut Fix & Desktop Mode Expansion
+   ========================================================================== */
+@media (max-width: 820px) {
+  html body #T#T#T#T .t-topbar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding: 12px 14px 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  html body #T#T#T#T .nxs-title {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    padding-top: 0 !important;
+  }
+  html body #T#T#T#T .nxs-title h1 {
+    font-size: clamp(20px, 5.4vw, 24px) !important;
+    letter-spacing: -0.02em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+  }
+  html body #T#T#T#T .nxs-title p {
+    margin: 3px 0 0 !important;
+    font-size: 11.5px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: 60vw !important;
+  }
+  html body #T#T#T#T .t-actions {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  html body #T#T#T#T .t-actions button.nxs-round {
+    width: 42px !important;
+    height: 42px !important;
+  }
+  html body #T#T#T#T .t-nav {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    transform: translateX(-50%) !important;
+    width: min(480px, calc(100% - 16px)) !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+    gap: 0 !important;
+    padding: 8px 6px 7px !important;
+    margin: 0 !important;
+    border-radius: 36px !important;
+    z-index: 60 !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding: 0 1px !important;
+    font-size: 9.5px !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn .ci {
+    width: 42px !important;
+    height: 42px !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn.on .ci {
+    width: 50px !important;
+    height: 50px !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn .lb {
+    font-size: 9.5px !important;
+    line-height: 1.1 !important;
+    min-height: 1.2em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  html body #T#T#T#T .tdb {
+    padding: 6px 12px 115px !important;
+    max-width: 100% !important;
+  }
+  html body #T#T#T#T .tdb-top {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 14px 14px !important;
+    border-radius: 20px !important;
+  }
+  html body #T#T#T#T .tdb-strip {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 4px !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  html body #T#T#T#T .tdb-day {
+    min-width: 0 !important;
+    padding: 6px 2px 5px !important;
+    border-radius: 12px !important;
+  }
+  html body #T#T#T#T .tdb-day b {
+    font-size: 15px !important;
+  }
+  html body #T#T#T#T .tdb-day small {
+    font-size: 9.5px !important;
+  }
+  html body #T#T#T#T .tdb-pc {
+    flex: 0 0 155px !important;
+    height: 195px !important;
+    padding: 13px !important;
+  }
+  html body #T#T#T#T .tdb-pc b {
+    padding-right: 32px !important;
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+  }
+}
+
+@media (min-width: 821px) {
+  html body #T#T#T#T .t-topbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 20px !important;
+    padding: 16px clamp(20px, 3.5vw, 60px) !important;
+    max-width: none !important;
+    width: 100% !important;
+    background: var(--rail, #0e5640) !important;
+    border-bottom: 1px solid var(--line, rgba(255,255,255,0.1)) !important;
+  }
+  html body #T#T#T#T .nxs-title {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+  }
+  html body #T#T#T#T .nxs-title h1 {
+    font-size: 26px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
+  }
+  html body #T#T#T#T .nxs-title p {
+    font-size: 12px !important;
+    margin-top: 3px !important;
+  }
+  html body #T#T#T#T .t-nav {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    width: auto !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 4px 6px !important;
+    border-radius: 12px !important;
+    background: rgba(0, 0, 0, 0.22) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: none !important;
+    z-index: 10 !important;
+  }
+  html body #T#T#T#T[data-theme="dgwhite"] .t-nav {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 7px 16px !important;
+    min-height: 36px !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    background: none !important;
+    cursor: pointer !important;
+    transition: all .16s ease !important;
+  }
+  html body #T#T#T#T[data-theme="dgwhite"] .t-nav .t-tab-btn {
+    color: #ffffff !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn .ci {
+    width: 18px !important;
+    height: 18px !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: inherit !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn .ci svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn .lb {
+    display: inline !important;
+    min-height: 0 !important;
+    padding-top: 0 !important;
+    font-size: 13px !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+    color: inherit !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn.on {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35) !important;
+  }
+  html body #T#T#T#T[data-theme="dgwhite"] .t-nav .t-tab-btn.on {
+    background: #ffffff !important;
+    color: #06281d !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  }
+  html body #T#T#T#T .t-nav .t-tab-btn:hover:not(.on) {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+  html body #T#T#T#T .t-actions {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+  html body #T#T#T#T .tdb {
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding: 24px 32px 60px !important;
+  }
+  html body #T#T#T#T .tdb-top {
+    padding: 20px 24px !important;
+  }
+  html body #T#T#T#T .tdb-hero {
+    padding: 24px 32px !important;
+  }
+  html body #T#T#T#T .tdb-row {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
+    gap: 16px !important;
+    overflow-x: visible !important;
+    padding: 4px 2px !important;
+  }
+  html body #T#T#T#T .tdb-pc {
+    flex: none !important;
+    width: auto !important;
+    height: 220px !important;
+  }
+  html body #T#T#T#T .tdb-desktop-cols {
+    display: grid !important;
+    grid-template-columns: 1.25fr 0.75fr !important;
+    gap: 24px !important;
+    align-items: start !important;
+  }
+}
+
+
 /* ===== DPS Amarpali: Teacher Panel CSS =====
    Container: <div id="T" data-theme="dgwhite|obsidian"> ... </div>
    Themes: dgwhite = light, obsidian = dark.
@@ -6671,15 +6937,16 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
     var catCount={};
 
     mySlips.forEach(function(s){
-      (s.items||[]).forEach(function(it){
-        var q=Number(it.qty)||0;
-        totalItemsRequested+=q;
-        if(s.st==='Approved')totalItemsIssued+=q;
-        var realItem=(items||[]).find(function(x){
-          return x.id===it.id || (x.name&&it.name&&x.name.trim().toLowerCase()===it.name.trim().toLowerCase());
-        });
-        var cat=(realItem&&realItem.cat)||it.cat||'General';
-        catCount[cat]=(catCount[cat]||0)+q;
+      var lines=s.it||s.items||[];
+      lines.forEach(function(l,li){
+        var itemId=Array.isArray(l)?l[0]:(l.id||l.itemId);
+        var reqQ=Array.isArray(l)?(Number(l[2])||0):(Number(l.qty||l.q)||0);
+        var issQ=(s.st==='Approved'&&Array.isArray(s.iss)&&s.iss[li]!=null)?Number(s.iss[li]):(s.st==='Approved'?reqQ:0);
+        totalItemsRequested+=reqQ;
+        if(s.st==='Approved')totalItemsIssued+=(issQ||reqQ);
+        var realItem=(items||[]).find(function(x){return x.id===itemId})||(typeof find==='function'?find(itemId):null);
+        var cat=(realItem&&realItem.cat)||'General';
+        catCount[cat]=(catCount[cat]||0)+(s.st==='Approved'?(issQ||reqQ):reqQ);
       });
     });
 
@@ -6743,7 +7010,7 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
     }else{
       var sorted=mySlips.slice().sort(function(a,b){return (b.id||0)-(a.id||0)}).slice(0,4);
       recentHTML=sorted.map(function(s){
-        var cnt=(s.items||[]).reduce(function(acc,x){return acc+(Number(x.qty)||0)},0);
+        var lines=s.it||s.items||[];var cnt=lines.reduce(function(acc,l){return acc+(Array.isArray(l)?(Number(l[2])||0):(Number(l.qty||l.q)||0))},0);
         var stCol=s.st==='Approved'?'#10b981':(s.st==='Declined'?'#ef4444':(s.st==='Verified'?'#60a5fa':'#f59e0b'));
         var stTxt=s.st==='Approved'?'Approved & Issued':(s.st==='Declined'?'Declined':(s.st==='Verified'?'Principal Approved':'Pending Review'));
         var dStr=s.date?fmt(s.date):'Recent';
@@ -6800,9 +7067,11 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
     h+='<section class="tdb-dark">'
       +'<div class="tdb-sh"><h3>Quick Stationery</h3><button class="tdb-cta" type="button" data-t-action="nav-stock">Browse all →</button></div>'
       +'<div class="tdb-row">'+quickHTML+'</div>'
-      +'<div class="tdb-sh" style="margin-top:20px"><h3>Recent Slips</h3><button class="tdb-cta" type="button" data-t-action="nav-my-slips">View all →</button></div>'
-      +'<div class="tdb-list">'+recentHTML+'</div>'
-      +catHTML
+      +'<div class="tdb-desktop-cols">'
+      +'<div><div class="tdb-sh" style="margin-top:20px"><h3>Recent Slips</h3><button class="tdb-cta" type="button" data-t-action="nav-my-slips">View all →</button></div>'
+      +'<div class="tdb-list">'+recentHTML+'</div></div>'
+      +'<div>'+catHTML+'</div>'
+      +'</div>'
       +'</section>';
 
     h+='</div>';
@@ -6871,16 +7140,16 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
     var cntH='<span class="sp-cnt" data-n="'+tCart.length+'">'+tCart.length+'</span>';
     var html='<div class="t-shell nxs"><header class="t-topbar nxs-head">';
     html+='<div class="nxs-title"><h1>'+(isDash?'Teacher Dashboard':(isStock?'Browse Items':'My Slips'))+'</h1><p>'+(isDash?'Overview & quick requisitions \u2022 ':(isStock?'Stationery Store \u2022 ':'Track your requisition slips \u2022 '))+E(tTeacherName)+'</p></div>';
-    html+='<div class="t-actions"><button class="nxs-round" data-t-search="1" title="Search items" aria-label="Search items">'+I_SRCH+'</button>';
-    html+='<button class="nxs-round sp-cartbtn" id="sp-cartbtn" data-sp-cart="1" title="My Requisition Slip" aria-label="My Requisition Slip">'+I_BAG+cntH+'</button></div></header>';
     html+='<nav class="t-nav nxs-dock" aria-label="Teacher navigation">';
     html+='<button class="t-tab-btn '+(isDash?'on':'')+'" data-t-action="nav-dash"><span class="ci">'+I_DASH+'</span><span class="lb">Dashboard</span></button>';
     html+='<button class="t-tab-btn '+(isStock?'on':'')+'" data-t-action="nav-stock"><span class="ci">'+I_BOX+'</span><span class="lb">Browse Items</span></button>';
     html+='<button class="t-tab-btn '+(tView==='my-slips'?'on':'')+'" data-t-action="nav-my-slips"><span class="ci">'+I_CLIP+(pending>0?'<span class="t-badge">'+pending+'</span>':'')+'</span><span class="lb">My Slips</span></button>';
-    html+='<button class="t-tab-btn nxs-bagbtn" data-sp-cart="1"><span class="ci">'+I_BAG+cntH+'</span><span class="lb">My Requisition Slip</span></button>';
+    html+='<button class="t-tab-btn nxs-bagbtn" data-sp-cart="1"><span class="ci">'+I_BAG+cntH+'</span><span class="lb">My Slip</span></button>';
     html+='<button class="t-tab-btn" id="t-settings-btn" title="Appearance &amp; Settings"><span class="ci">'+I_GEAR+'</span><span class="lb">Settings</span></button>';
     html+='<button class="t-tab-btn" data-t-action="logout" title="Sign out"><span class="ci">'+I_OUT+'</span><span class="lb">Sign out</span></button>';
     html+='</nav>';
+    html+='<div class="t-actions"><button class="nxs-round" data-t-search="1" title="Search items" aria-label="Search items">'+I_SRCH+'</button>';
+    html+='<button class="nxs-round sp-cartbtn" id="sp-cartbtn" data-sp-cart="1" title="My Requisition Slip" aria-label="My Requisition Slip">'+I_BAG+cntH+'</button></div></header>';
     html+='<main class="t-content" id="t-main-content">'+(isDash?renderTeacherDashboardView():(tView==='my-slips'?renderTeacherMySlipsView():renderShop()))+'</main></div>';
     html+='<div id="sp-layer"></div><div id="sp-toast" class="sp-toast"></div>';
     container.innerHTML=html;
