@@ -4,9 +4,12 @@ const S = require('../lib/state');
 
 module.exports = wrap(['GET', 'PUT'], async ({ req, store, user, body, json }) => {
   if (req.method === 'GET') {
-    const { data, version } = await store.getState();
     const since = Number(new URL(req.url, 'http://x').searchParams.get('since'));
-    if (since && since === version) return json(200, { unchanged: true, version });
+    if (since) {
+      const v = await store.getStateVersion();
+      if (since === v) return json(200, { unchanged: true, version: v });
+    }
+    const { data, version } = await store.getState();
     return json(200, { version, data: S.viewFor(user, data) });
   }
 

@@ -4560,20 +4560,31 @@ html[data-theme="dgwhite"] #dps-splash .sp-bar i{background:#0f7a58}
 <div id="T" hidden></div>
 <script>
 /* talks to the server (Vercel + Neon); the sign-in cookie is HttpOnly so scripts never see it */
-window.dpsApi=async function(path,opts){opts=opts||{};
-  var o={method:opts.method||(opts.body?'POST':'GET'),credentials:'same-origin',headers:{}};
-  if(opts.body){o.headers['Content-Type']='application/json';o.body=JSON.stringify(opts.body)}
-  var ctrl=window.AbortController?new AbortController():null;
-  if(ctrl)o.signal=ctrl.signal;
-  var tm=ctrl?setTimeout(function(){try{ctrl.abort()}catch(e){}},opts.timeout||12000):null;
-  try{var r=await fetch('/api/'+path,o),j={};
-    if(tm)clearTimeout(tm);
-    try{j=await r.json()}catch(e){}
-    return {ok:r.ok,status:r.status,data:j}}
-  catch(e){
-    if(tm)clearTimeout(tm);
-    var isAbort=e&&(e.name==='AbortError'||e.code===20);
-    return {ok:false,status:0,data:{error:isAbort?'Request timed out. Please try again.':'No connection to the server. Check your internet and try again.'}}}
+window.dpsApi=async function(path,opts){
+  opts=opts||{};
+  var maxAttempts=(opts.retries!==undefined)?opts.retries:((path==='login'||path==='state'||path.indexOf('state?')===0)?1:0);
+  for(var attempt=0;attempt<=maxAttempts;attempt++){
+    var o={method:opts.method||(opts.body?'POST':'GET'),credentials:'same-origin',headers:{}};
+    if(opts.body){o.headers['Content-Type']='application/json';o.body=JSON.stringify(opts.body)}
+    var ctrl=window.AbortController?new AbortController():null;
+    if(ctrl)o.signal=ctrl.signal;
+    var timeoutMs=opts.timeout||(path==='health'?10000:30000);
+    var tm=ctrl?setTimeout(function(){try{ctrl.abort()}catch(e){}},timeoutMs):null;
+    try{
+      var r=await fetch('/api/'+path,o),j={};
+      if(tm)clearTimeout(tm);
+      try{j=await r.json()}catch(e){}
+      return {ok:r.ok,status:r.status,data:j};
+    }catch(e){
+      if(tm)clearTimeout(tm);
+      var isAbort=e&&(e.name==='AbortError'||e.code===20);
+      if(attempt<maxAttempts){
+        await new Promise(function(resolve){setTimeout(resolve,800)});
+        continue;
+      }
+      return {ok:false,status:0,data:{error:isAbort?'Server waking up. Please try again in a moment.':'No connection to the server. Check your internet and try again.'}};
+    }
+  }
 };
 /* wake Neon Postgres compute + serverless runtime on page load so PIN entry is instant */
 try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function(){})}catch(e){}
@@ -4978,7 +4989,7 @@ try{fetch('/api/health',{method:'GET',credentials:'same-origin'}).catch(function
   window.__dpsLoadStateBackground=async function(){
     if(!window.__me)return false;
     window.__dpsStateStatus='loading';
-    var r=await dpsApi('state',{timeout:15000});
+    var r=await dpsApi('state',{timeout:30000});
     if(r.ok&&r.data&&r.data.data){
       dpsVer=r.data.version;
       applyState(r.data.data);
