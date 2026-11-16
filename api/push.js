@@ -4,6 +4,7 @@ const push = require('../lib/push');
 
 module.exports = wrap(['GET', 'POST', 'DELETE'], async ({ req, store, user, body, json }) => {
   if (req.method === 'GET') {
+    await store.ensurePushTable().catch(() => {});
     const publicKey = await push.getPublicKey(store);
     return json(200, { ok: true, publicKey });
   }
@@ -15,6 +16,7 @@ module.exports = wrap(['GET', 'POST', 'DELETE'], async ({ req, store, user, body
     if (!sub || !sub.endpoint || !sub.keys) {
       return json(400, { error: 'Invalid subscription object.' });
     }
+    await store.ensurePushTable().catch(() => {});
     const ok = await store.savePushSubscription(user.id, user.role, user.name, sub);
     return json(200, { ok: !!ok });
   }

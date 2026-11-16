@@ -4705,6 +4705,8 @@ try{
     el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
     clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove('show')},2800);
   }
+  window.sfx=sfx;
+  window.notify=notify;
   function shake(el){el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');sfx('err')}
   function dots(){var d=document.querySelectorAll('#dots i');d.forEach(function(x,i){x.classList.toggle('on',i<buf.length)})}
   function render(){
@@ -5093,7 +5095,64 @@ try{
     if(dpsDirty&&window.__me){try{fetch('/api/state',{method:'PUT',keepalive:true,credentials:'same-origin',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({data:window.__me.role==='admin'?{items:items,uid:uid,bills:bills,bid:bid,fac:fac,log:log,reqs:reqs,sessionCfg:sessionCfg}:{reqs:reqs}})})}catch(e){}}
   });
-  /* pick up other people's changes (new slips, approvals, stock) every 15 seconds */
+  /* pick up other people's changes (new slips, approvals, stock) every 6 seconds */
+  function notifyReqChanges(prevReqs, nextReqs){
+    if(!prevReqs || !nextReqs || !window.__me) return;
+    var myRole = (window.__me && window.__me.role) || '';
+    var myName = (window.__me && window.__me.name) || '';
+    var prevMap = {};
+    (prevReqs || []).forEach(function(r){ if(r && r.id) prevMap[String(r.id)] = r; });
+
+    (nextReqs || []).forEach(function(nr){
+      if(!nr || !nr.id) return;
+      var pr = prevMap[String(nr.id)];
+      if(!pr){
+        // New slip
+        if(myRole === 'admin' || myRole === 'principal'){
+          window.sfx && window.sfx('ok');
+          var msg = 'New Requisition Slip #' + nr.id + ' from ' + (nr.by || 'Teacher');
+          window.notify && window.notify(msg);
+          if(document.hidden && window.Notification && Notification.permission === 'granted'){
+            try { new Notification('DPS IMS: New Requisition', { body: msg, icon: '/favicon.png' }); }catch(e){}
+          }
+        }
+      } else if(pr.st !== nr.st){
+        // Status changed
+        if(nr.st === 'Verified'){
+          if(myRole === 'admin'){
+            window.sfx && window.sfx('ok');
+            var msg = 'Principal verified Slip #' + nr.id + ' (' + (nr.by || 'Teacher') + ') - Ready to issue';
+            window.notify && window.notify(msg);
+            if(document.hidden && window.Notification && Notification.permission === 'granted'){
+              try { new Notification('DPS IMS: Slip Verified', { body: msg, icon: '/favicon.png' }); }catch(e){}
+            }
+          } else if(myRole === 'teacher' && nr.by === myName){
+            window.sfx && window.sfx('ok');
+            var msg = 'Requisition #' + nr.id + ' verified by Principal!';
+            window.notify && window.notify(msg);
+            if(document.hidden && window.Notification && Notification.permission === 'granted'){
+              try { new Notification('DPS IMS: Slip Verified', { body: msg, icon: '/favicon.png' }); }catch(e){}
+            }
+          }
+        } else if(nr.st === 'Approved'){
+          if(myRole === 'teacher' && nr.by === myName){
+            window.sfx && window.sfx('ok');
+            var msg = 'Requisition #' + nr.id + ' issued by Admin. Ready for collection!';
+            window.notify && window.notify(msg);
+            if(document.hidden && window.Notification && Notification.permission === 'granted'){
+              try { new Notification('DPS IMS: Stock Issued', { body: msg, icon: '/favicon.png' }); }catch(e){}
+            }
+          }
+        } else if(nr.st === 'Declined'){
+          if(myRole === 'teacher' && nr.by === myName){
+            window.sfx && window.sfx('err');
+            var msg = 'Requisition #' + nr.id + ' was declined.';
+            window.notify && window.notify(msg);
+          }
+        }
+      }
+    });
+  }
   function dpsRedraw(){
     try{
       var tp=document.getElementById('T');
@@ -5104,12 +5163,16 @@ try{
     }catch(e){}
   }
   setInterval(async function(){
-    if(!window.__me||window.__dpsStateStatus!=='loaded'||dpsDirty||dpsSaving||document.hidden)return;
+    if(!window.__me||window.__dpsStateStatus!=='loaded'||dpsDirty||dpsSaving)return;
     var r=await dpsApi('state?since='+dpsVer);
     if(r.status===401){sessExpired();return}
     if(!r.ok||r.data.unchanged||dpsDirty||dpsSaving)return;
-    dpsVer=r.data.version;applyState(r.data.data);dpsRedraw();
-  },15000);
+    var oldReqs = (reqs || []).slice();
+    dpsVer=r.data.version;
+    applyState(r.data.data);
+    dpsRedraw();
+    notifyReqChanges(oldReqs, r.data.data.reqs);
+  },6000);
 
   var view='stock',mode='f',cat='All',tag=null,openId=null,billId=null,editingBillId=null,facName=null,query='',addTab='issue',dmgItem=null;
   var rowsI=[{id:0,v:'',q:''}],rowsB=[{id:0,v:'',q:'',r:''}],rowsEB=[];
@@ -7572,14 +7635,32 @@ try{
   function swap(from,to){from.hidden=true;from.classList.remove('leave');to.hidden=false;to.classList.add('enter');setTimeout(function(){to.classList.remove('enter')},300)}
   window.__enter=function(s){
     if(!s)return;
-    if(s.role==='admin'||s.role==='principal'){
-      window.__adminReset&&window.__adminReset();
-      swap(L,A);
-    }else{
-      window.__renderTeacherPanel&&window.__renderTeacherPanel(s.name);
-      swap(L,T);
+    try {
+      if(s.role==='admin'||s.role==='principal'){
+        window.__adminReset&&window.__adminReset();
+        swap(L,A);
+      }else{
+        window.__renderTeacherPanel&&window.__renderTeacherPanel(s.name);
+        swap(L,T);
+      }
+    } catch(err) {
+      console.error('Error entering portal:', err);
+      if(s.role==='admin'||s.role==='principal'){
+        L.hidden=true; A.hidden=false;
+      } else {
+        L.hidden=true; T.hidden=false;
+      }
     }
   };
+  setTimeout(function(){
+    try {
+      var l=document.getElementById('L'), a=document.getElementById('A'), t=document.getElementById('T');
+      if(l && a && t && l.hidden && a.hidden && t.hidden){
+        console.warn('Watchdog: Restoring login view because all views were hidden');
+        l.hidden = false;
+      }
+    }catch(e){}
+  }, 2500);
   window.__logout=function(){
     try{sessionStorage.removeItem('dps_session')}catch(e){}
     try{dpsApi('logout',{body:{}})}catch(e){}
