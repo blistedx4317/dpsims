@@ -4865,13 +4865,8 @@ try{
     }
     if(window.Notification && Notification.permission === 'granted'){
       window.__subscribePush&&window.__subscribePush(false).catch(function(){});
-    }else if(window.Notification && Notification.permission === 'default'){
-      setTimeout(function(){
-        if(window.__sess && !sessionStorage.getItem('dps_push_notified')){
-          sessionStorage.setItem('dps_push_notified','1');
-          notify('Tip: Enable Push Notifications in Settings for live requisition alerts.');
-        }
-      }, 3500);
+    }else{
+      window.__checkAutoPushPrompt&&window.__checkAutoPushPrompt();
     }
   }
   $('#go').addEventListener('click',function(){clearTimeout(window.__autoGo);window.__enter(window.__sess)});
@@ -7614,6 +7609,11 @@ try{
         if(window.__dpsStateStatus!=='loaded'){
           window.__dpsLoadStateBackground&&window.__dpsLoadStateBackground();
         }
+        if(window.Notification && Notification.permission === 'granted'){
+          window.__subscribePush&&window.__subscribePush(false).catch(function(){});
+        }else{
+          window.__checkAutoPushPrompt&&window.__checkAutoPushPrompt();
+        }
       }
     }catch(e){}
   })();
@@ -9284,6 +9284,53 @@ html body #L#L#L#L[data-theme="dgwhite"] .msg:not(:empty){background:rgba(217,58
     padding: 12px 14px;
   }
 }
+#push-prompt-banner {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  max-width: 440px;
+  width: calc(100vw - 32px);
+  background: rgba(14, 20, 32, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(155, 171, 132, 0.4);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  z-index: 99998;
+  color: #fff;
+  font-family: inherit;
+  animation: pwaSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+html[data-theme="dgwhite"] #push-prompt-banner {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(14, 86, 64, 0.25);
+  box-shadow: 0 16px 40px rgba(6, 40, 29, 0.16);
+  color: #0e2119;
+}
+html[data-theme="dgwhite"] #push-prompt-banner .pwa-text strong {
+  color: #0e2119;
+}
+html[data-theme="dgwhite"] #push-prompt-banner .pwa-text small {
+  color: #5a7167;
+}
+html[data-theme="dgwhite"] #push-prompt-banner .pwa-dismiss-btn {
+  color: #5a7167;
+}
+@media (max-width: 600px) {
+  #push-prompt-banner {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    padding: 12px 14px;
+  }
+}
 @keyframes dpsShimmer{0%{opacity:.38}50%{opacity:.82}100%{opacity:.38}}
 .dps-skel{animation:dpsShimmer 1.5s ease-in-out infinite!important;background:var(--soft,rgba(255,255,255,.07))!important;border-radius:12px;position:relative;overflow:hidden}
 .dps-skel-card{min-height:160px;border:1px solid var(--line,rgba(255,255,255,.08))!important}
@@ -9301,6 +9348,22 @@ html body #L#L#L#L[data-theme="dgwhite"] .msg:not(:empty){background:rgba(217,58
   <div class="pwa-btns">
     <button id="pwa-install-action" class="pwa-install-btn">Install</button>
     <button id="pwa-install-dismiss" class="pwa-dismiss-btn" title="Dismiss">&times;</button>
+  </div>
+</div>
+
+<div id="push-prompt-banner" style="display:none" role="dialog" aria-label="Enable DPS IMS Live Notifications">
+  <div class="pwa-content">
+    <div class="pwa-icon" style="background:#0e5640;display:grid;place-items:center;color:#fff">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
+    <div class="pwa-text">
+      <strong>Live Requisition Alerts</strong>
+      <small>Get notified for approvals &amp; slips even when closed</small>
+    </div>
+  </div>
+  <div class="pwa-btns">
+    <button id="push-prompt-enable" class="pwa-install-btn" style="background:#0e5640;color:#fff;cursor:pointer">Turn On</button>
+    <button id="push-prompt-dismiss" class="pwa-dismiss-btn" title="Not Now">&times;</button>
   </div>
 </div>
 
@@ -9381,6 +9444,53 @@ html body #L#L#L#L[data-theme="dgwhite"] .msg:not(:empty){background:rgba(217,58
     if (banner) banner.style.display = 'none';
     deferredPrompt = null;
   });
+
+  // 3. Automatic Live Alert Prompt (Asks 2-3 times max across sessions, then stops)
+  window.__checkAutoPushPrompt = function() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+
+    var count = parseInt(localStorage.getItem('dps_push_prompt_count') || '0', 10);
+    if (count >= 3) return; // Stop asking if already prompted 3 times
+
+    if (sessionStorage.getItem('dps_push_prompt_session') === '1') return;
+    sessionStorage.setItem('dps_push_prompt_session', '1');
+
+    var pBanner = document.getElementById('push-prompt-banner');
+    if (!pBanner) return;
+
+    // Increment prompt count
+    localStorage.setItem('dps_push_prompt_count', String(count + 1));
+
+    setTimeout(function() {
+      if (Notification.permission === 'default' && (window.__sess || window.__me)) {
+        pBanner.style.display = 'flex';
+      }
+    }, 2400);
+  };
+
+  var pEnableBtn = document.getElementById('push-prompt-enable');
+  var pDismissBtn = document.getElementById('push-prompt-dismiss');
+  var pBanner = document.getElementById('push-prompt-banner');
+
+  if (pEnableBtn) {
+    pEnableBtn.addEventListener('click', async function() {
+      if (pBanner) pBanner.style.display = 'none';
+      if (window.__subscribePush) {
+        var res = await window.__subscribePush(true);
+        if (res && res.ok) {
+          localStorage.setItem('dps_push_prompt_count', '99'); // Permanently disable prompts once enabled
+          if (window.notify) notify('Live alerts activated!');
+        }
+      }
+    });
+  }
+
+  if (pDismissBtn && pBanner) {
+    pDismissBtn.addEventListener('click', function() {
+      pBanner.style.display = 'none';
+    });
+  }
 })();
 </script>
 
