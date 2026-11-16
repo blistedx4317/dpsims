@@ -1,6 +1,7 @@
 'use strict';
 const { wrap } = require('../lib/http');
 const S = require('../lib/state');
+const push = require('../lib/push');
 
 module.exports = wrap(['GET', 'PUT'], async ({ req, store, user, body, json }) => {
   if (req.method === 'GET') {
@@ -22,7 +23,10 @@ module.exports = wrap(['GET', 'PUT'], async ({ req, store, user, body, json }) =
     else if (user.role === 'principal') next = S.applyPrincipal(cur, client.reqs);
     else { const r = S.applyTeacher(cur, client.reqs, user.name); next = r.state; assigned = r.assigned; }
     const nv = await store.casState(version, next);
-    if (nv) return json(200, { version: nv, data: S.viewFor(user, next), assigned });
+    if (nv) {
+      push.dispatchStateNotifications(store, user, cur, next).catch(() => {});
+      return json(200, { version: nv, data: S.viewFor(user, next), assigned });
+    }
   }
   json(409, { error: 'Others are saving at the same time. Please try again.' });
 });

@@ -133,6 +133,20 @@ server.listen(0, async () => {
     r = await anon('GET', '/api/assets?key=test-font');
     ok(r.s === 200, 'public can fetch asset');
 
+    console.log('Web Push Notifications');
+    const pushKeyRes = await anon('GET', '/api/push');
+    ok(pushKeyRes.s === 200 && typeof pushKeyRes.j.publicKey === 'string' && pushKeyRes.j.publicKey.length > 20, 'public key returned for web push');
+    ok((await anon('POST', '/api/push', { subscription: { endpoint: 'https://push.example/1' } })).s === 401, 'unauthorized push subscribe rejected');
+    const subRes = await princ('POST', '/api/push', {
+      subscription: {
+        endpoint: 'https://push.example/1',
+        keys: { p256dh: 'test-key-p256dh', auth: 'test-auth-secret' }
+      }
+    });
+    ok(subRes.s === 200 && subRes.j.ok === true, 'principal subscribes to push notifications');
+    const delSubRes = await princ('DELETE', '/api/push', { endpoint: 'https://push.example/1' });
+    ok(delSubRes.s === 200 && delSubRes.j.ok === true, 'principal unsubscribes from push notifications');
+
     await admin('POST', '/api/logout', {});
     ok((await admin('GET', '/api/state')).s === 401, 'sign out ends the session');
 

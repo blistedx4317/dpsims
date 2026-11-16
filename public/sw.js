@@ -1,5 +1,5 @@
 /* DPS Amrapali IMS - Progressive Web App Service Worker */
-const CACHE_NAME = 'dps-ims-v1.0.18';
+const CACHE_NAME = 'dps-ims-v1.0.19';
 
 const STATIC_ASSETS = [
   '/',
@@ -119,3 +119,48 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 });
+
+// Push Notifications: show alert even when browser/app is completely closed
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: 'DPS IMS Notification', body: event.data ? event.data.text() : 'You have a new update.' };
+  }
+  const title = data.title || 'DPS Amrapali Inventory';
+  const options = {
+    body: data.body || 'New inventory update.',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    vibrate: [150, 50, 150],
+    tag: data.slipId ? ('slip-' + data.slipId) : 'dps-ims-notification',
+    renotify: true,
+    data: {
+      url: data.url || '/'
+    }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Notification click: restore/focus app tab
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client && targetUrl !== '/') {
+            client.navigate(targetUrl);
+          }
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
