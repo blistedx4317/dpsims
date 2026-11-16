@@ -6730,7 +6730,7 @@ try{
   });
   // ===================== TEACHER PANEL IMPLEMENTATION (shop-style requisition) =====================
   var tView='dash';            // 'dash' | 'stock' | 'my-slips'
-  var tCat='All', tQuery='', tTeacherName='';
+  var tCat='All', tQuery='', tTeacherName='', tSelectedDate=null;
   var tCart=[], tCartFor='', tPurpose='';
   var tModal=null, tCartOpen=false, tSent=null;
   var tAnimModal=false, tAnimCart=false, tToastTimer=null, tSentTimer=null;
@@ -7092,11 +7092,38 @@ try{
   }
   
   /* ---------- teacher dashboard view ---------- */
+  function getWeekdayStripHTML(allMySlips){
+    var now=new Date();
+    var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var curDayIdx=now.getDay();
+    var dayDiff=(curDayIdx===0?6:curDayIdx-1);
+    var startOfWeek=new Date(now);
+    startOfWeek.setDate(now.getDate()-dayDiff);
+
+    var daysHTML='<button class="tdb-day'+(!tSelectedDate?' on td':'')+'" type="button" data-t-action="clear-date" title="Show all dates"><b>All</b><small>Dates</small><div class="dt"></div></button>';
+    for(var i=0;i<7;i++){
+      var d=new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate()+i);
+      var isTd=(d.toDateString()===now.toDateString());
+      var dIso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      var isSel=(tSelectedDate===dIso);
+      var hasReq=(allMySlips||[]).some(function(s){return s.date&&String(s.date).slice(0,10)===dIso});
+      daysHTML+='<button class="tdb-day'+(isSel?' on':'')+(isTd?' td':'')+'" type="button" data-tdb-date="'+dIso+'" title="'+fmt(dIso)+'">'
+        +'<b>'+d.getDate()+'</b><small>'+dayNames[d.getDay()]+'</small>'
+        +'<div class="dt">'+(hasReq?'<i style="background:var(--acc,#8fb339)"></i>':'')+'</div>'
+        +'</button>';
+    }
+    return daysHTML;
+  }
+
   function renderTeacherDashboardView(){
     if(window.__dpsStateStatus==='loading')return renderTeacherSkeleton();
     if(window.__dpsStateStatus==='error')return renderTeacherError();
     var tName=getTeacherName();
-    var mySlips=(reqs||[]).filter(function(r){return r.by===tName});
+    var allMySlips=(reqs||[]).filter(function(r){return r.by===tName});
+    var mySlips=tSelectedDate
+      ? allMySlips.filter(function(r){return r.date&&String(r.date).slice(0,10)===tSelectedDate})
+      : allMySlips;
     var pendingSlips=mySlips.filter(function(r){return r.st==='Pending'||r.st==='Verified'});
     var approvedSlips=mySlips.filter(function(r){return r.st==='Approved'});
     var declinedSlips=mySlips.filter(function(r){return r.st==='Declined'});
@@ -7127,27 +7154,13 @@ try{
     var now=new Date();
     var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     var monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var curDayIdx=now.getDay();
-    var dayDiff=(curDayIdx===0?6:curDayIdx-1);
-    var startOfWeek=new Date(now);
-    startOfWeek.setDate(now.getDate()-dayDiff);
-
-    var daysHTML='';
-    for(var i=0;i<7;i++){
-      var d=new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate()+i);
-      var isTd=(d.toDateString()===now.toDateString());
-      var dIso=d.toISOString().slice(0,10);
-      var hasReq=mySlips.some(function(s){return s.date&&String(s.date).slice(0,10)===dIso});
-      daysHTML+='<button class="tdb-day'+(isTd?' on td':'')+'" type="button" data-tdb-date="'+dIso+'">'
-        +'<b>'+d.getDate()+'</b><small>'+dayNames[d.getDay()]+'</small>'
-        +'<div class="dt">'+(hasReq?'<i style="background:var(--acc,#8fb339)"></i>':'')+'</div>'
-        +'</button>';
-    }
+    var daysHTML=getWeekdayStripHTML(allMySlips);
 
     var hr=now.getHours();
     var timeGreeting=hr<12?'Good morning':(hr<17?'Good afternoon':'Good evening');
-    var dateFormatted=dayNames[now.getDay()]+', '+now.getDate()+' '+monthNames[now.getMonth()];
+    var dateFormatted=tSelectedDate
+      ? ('Showing: '+fmt(tSelectedDate))
+      : (dayNames[now.getDay()]+', '+now.getDate()+' '+monthNames[now.getMonth()]);
 
     /* quick stationery items */
     var variants=['','c2','c3','c4'];
@@ -7175,7 +7188,9 @@ try{
     /* recent slips */
     var recentHTML='';
     if(!mySlips.length){
-      recentHTML='<p class="tdb-empty">No slips submitted yet. Tap Quick Stationery above or Browse Items to request stationery.</p>';
+      recentHTML='<p class="tdb-empty">'
+        +(tSelectedDate ? ('No slips found for '+fmt(tSelectedDate)+'. <br><button class="t-btn t-btn-sm t-btn-outline" style="margin-top:8px" type="button" data-t-action="clear-date">Show all slips</button>') : 'No slips submitted yet. Tap Quick Stationery above or Browse Items to request stationery.')
+        +'</p>';
     }else{
       var sorted=mySlips.slice().sort(function(a,b){return (b.id||0)-(a.id||0)}).slice(0,4);
       recentHTML=sorted.map(function(s){
@@ -7225,7 +7240,7 @@ try{
       +'<svg class="tdb-spark" viewBox="0 0 260 64" fill="none" preserveAspectRatio="none">'
       +'<path class="ln" d="M 8 52 C 45 48, 75 36, 115 32 C 155 28, 185 14, 252 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" pathLength="1"/>'
       +'</svg>'
-      +'<em>'+approvedSlips.length+' slip'+(approvedSlips.length===1?'':'s')+' approved • '+pendingSlips.length+' pending</em>'
+      +'<em>'+approvedSlips.length+' slip'+(approvedSlips.length===1?'':'s')+' approved • '+pendingSlips.length+' pending'+(tSelectedDate ? (' on ' + fmt(tSelectedDate)) : '')+'</em>'
       +'</div>'
       +'<div class="tdb-dial" style="--p:'+fulfillmentRate+'">'
       +'<div class="in"><b>'+fulfillmentRate+'%</b><small>Fulfillment</small></div>'
@@ -7237,7 +7252,10 @@ try{
       +'<div class="tdb-sh"><h3>Quick Stationery</h3><button class="tdb-cta" type="button" data-t-action="nav-stock">Browse all →</button></div>'
       +'<div class="tdb-row">'+quickHTML+'</div>'
       +'<div class="tdb-desktop-cols">'
-      +'<div><div class="tdb-sh" style="margin-top:20px"><h3>Recent Slips</h3><button class="tdb-cta" type="button" data-t-action="nav-my-slips">View all →</button></div>'
+      +'<div><div class="tdb-sh" style="margin-top:20px">'
+        +'<h3>'+(tSelectedDate ? ('Slips on '+fmt(tSelectedDate)+' ('+mySlips.length+')') : 'Recent Slips')+'</h3>'
+        +(tSelectedDate ? '<button class="tdb-cta" type="button" data-t-action="clear-date">Show all →</button>' : '<button class="tdb-cta" type="button" data-t-action="nav-my-slips">View all →</button>')
+        +'</div>'
       +'<div class="tdb-list">'+recentHTML+'</div></div>'
       +'<div>'+catHTML+'</div>'
       +'</div>'
@@ -7251,18 +7269,31 @@ try{
     if(window.__dpsStateStatus==='loading')return renderTeacherSkeleton();
     if(window.__dpsStateStatus==='error')return renderTeacherError();
     var tName=getTeacherName();
-    var mySlips=(reqs||[]).filter(function(r){return r.by===tName});
+    var allMySlips=(reqs||[]).filter(function(r){return r.by===tName});
+    var mySlips=tSelectedDate
+      ? allMySlips.filter(function(r){return r.date&&String(r.date).slice(0,10)===tSelectedDate})
+      : allMySlips;
     var pc=mySlips.filter(function(r){return r.st==='Pending'||r.st==='Verified'}).length;
     var ac=mySlips.filter(function(r){return r.st==='Approved'}).length;
     var dc=mySlips.filter(function(r){return r.st==='Declined'}).length;
     var h='<div style="max-width:880px;margin:0 auto;padding-bottom:30px">';
-    h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap"><div><h2 style="margin:0 0 4px;font-size:22px;font-weight:800;letter-spacing:-.4px;color:var(--text)">My Requisition Slips</h2><p style="margin:0;font-size:13px;color:var(--muted)">Track live approval status of your stationery requests</p></div>';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap"><div><h2 style="margin:0 0 4px;font-size:22px;font-weight:800;letter-spacing:-.4px;color:var(--text)">My Requisition Slips</h2><p style="margin:0;font-size:13px;color:var(--muted)">Track live approval status of your stationery requests</p></div>';
     h+='<button class="t-btn t-btn-primary t-btn-sm" data-t-action="nav-stock"><span>Browse items</span></button></div>';
     var pill=function(lbl,val,col){return '<div style="padding:10px 18px;border-radius:12px;background:var(--card);border:1px solid var(--line)"><small style="display:block;color:'+col+';font-size:11.5px">'+lbl+'</small><b style="font-size:18px;color:'+col+'">'+val+'</b></div>'};
-    h+='<div style="display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap">'+pill('Total Submitted',mySlips.length,'var(--muted)')+pill('In Approval',pc,'var(--warn)')+pill('Issued',ac,'var(--acc)')+(dc?pill('Declined',dc,'var(--err)'):'')+'</div>';
+    h+='<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">'+pill(tSelectedDate?'Slips on Date':'Total Submitted',mySlips.length,'var(--muted)')+pill('In Approval',pc,'var(--warn)')+pill('Issued',ac,'var(--acc)')+(dc?pill('Declined',dc,'var(--err)'):'')+'</div>';
+    h+='<div style="margin-bottom:18px"><div class="tdb-strip" style="background:var(--card);padding:10px;border-radius:14px;border:1px solid var(--line)">'+getWeekdayStripHTML(allMySlips)+'</div>';
+    if(tSelectedDate){
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:13px;color:var(--text);background:var(--soft,rgba(255,255,255,.05));padding:8px 14px;border-radius:10px;border:1px solid var(--line)">'
+        +'<span>Filtered by date: <b style="color:var(--acc)">'+fmt(tSelectedDate)+'</b> ('+mySlips.length+' found)</span>'
+        +'<button class="t-btn t-btn-sm t-btn-outline" type="button" data-t-action="clear-date" style="padding:3px 10px;font-size:12px">Show all dates ✕</button>'
+        +'</div>';
+    }
+    h+='</div>';
     h+=dateBar();
     if(!mySlips.length){
-      h+='<div class="t-empty" style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:60px 20px"><h3 style="margin:0 0 6px">No requisition slips yet</h3><p style="margin:0 0 18px;font-size:13.5px">Add items to your slip and send it for approval.</p><button class="t-btn t-btn-primary" data-t-action="nav-stock">Browse items</button></div></div>';
+      h+='<div class="t-empty" style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:60px 20px"><h3 style="margin:0 0 6px">'+(tSelectedDate ? ('No slips on '+fmt(tSelectedDate)) : 'No requisition slips yet')+'</h3><p style="margin:0 0 18px;font-size:13.5px">'+(tSelectedDate ? 'No requisitions were submitted on this date.' : 'Add items to your slip and send it for approval.')+'</p>'
+        +(tSelectedDate ? '<button class="t-btn t-btn-sm t-btn-outline" data-t-action="clear-date" style="margin-right:10px">Show all slips</button>' : '')
+        +'<button class="t-btn t-btn-primary" data-t-action="nav-stock">Browse items</button></div></div>';
       return h;
     }
     mySlips.forEach(function(slip){
@@ -7290,7 +7321,7 @@ try{
   /* ---------- main render ---------- */
   window.__renderTeacherPanel=function(teacherName){
     if(teacherName&&teacherName!==tTeacherName){
-      tTeacherName=teacherName;tView='dash';tModal=null;tCartOpen=false;tSent=null;tCat='All';tQuery='';tPurpose='';
+      tTeacherName=teacherName;tView='dash';tModal=null;tCartOpen=false;tSent=null;tCat='All';tQuery='';tPurpose='';tSelectedDate=null;
     }else tTeacherName=getTeacherName();
     var container=document.getElementById('T');if(!container)return;
     loadCart();
@@ -7353,8 +7384,15 @@ try{
       }
       var dayClick=t.closest('[data-tdb-date]');
       if(dayClick){
-        document.querySelectorAll('#T .tdb-day').forEach(function(b){b.classList.remove('on')});
-        dayClick.classList.add('on');
+        var clickedDate = dayClick.getAttribute('data-tdb-date');
+        tSelectedDate = (tSelectedDate === clickedDate) ? null : clickedDate;
+        window.__renderTeacherPanel();
+        return;
+      }
+      var clearDate=t.closest('[data-t-action="clear-date"]');
+      if(clearDate){
+        tSelectedDate = null;
+        window.__renderTeacherPanel();
         return;
       }
       var nav=t.closest('[data-t-action]');
