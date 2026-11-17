@@ -4613,16 +4613,33 @@ window.__subscribePush = async function(promptUser) {
     var reg = await navigator.serviceWorker.ready;
     var res = await dpsApi('push');
     if (!res.ok || !res.data || !res.data.publicKey) return { ok: false, reason: 'server_error' };
+    var serverKeyBytes = window.__urlB64ToUint8Array(res.data.publicKey);
     var sub = await reg.pushManager.getSubscription();
+    var needsNew = !sub;
+    if (sub && sub.options && sub.options.applicationServerKey) {
+      var curKey = new Uint8Array(sub.options.applicationServerKey);
+      if (curKey.length !== serverKeyBytes.length) {
+        needsNew = true;
+      } else {
+        for (var i = 0; i < curKey.length; i++) {
+          if (curKey[i] !== serverKeyBytes[i]) { needsNew = true; break; }
+        }
+      }
+    }
+    if (needsNew && sub) {
+      try { await sub.unsubscribe(); } catch(e){}
+      sub = null;
+    }
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: window.__urlB64ToUint8Array(res.data.publicKey)
+        applicationServerKey: serverKeyBytes
       });
     }
     var saved = await dpsApi('push', { method: 'POST', body: { subscription: sub.toJSON() } });
-    return { ok: saved.ok };
+    return { ok: !!(saved && saved.ok) };
   } catch (e) {
+    console.error('Push subscribe error:', e);
     return { ok: false, error: e.message };
   }
 };
@@ -5172,7 +5189,7 @@ try{
     applyState(r.data.data);
     dpsRedraw();
     notifyReqChanges(oldReqs, r.data.data.reqs);
-  },6000);
+  },3500);
 
   var view='stock',mode='f',cat='All',tag=null,openId=null,billId=null,editingBillId=null,facName=null,query='',addTab='issue',dmgItem=null;
   var rowsI=[{id:0,v:'',q:''}],rowsB=[{id:0,v:'',q:'',r:''}],rowsEB=[];
@@ -9504,65 +9521,57 @@ html[data-theme="dgwhite"] #push-prompt-banner .pwa-dismiss-btn {
                      window.navigator.standalone === true ||
                      (document.referrer && document.referrer.includes('android-app://'));
 
-  if (isStandalone) {
-    console.log('[PWA] Running in standalone PWA mode');
-    return;
-  }
+  if (!isStandalone && sessionStorage.getItem('pwa_prompt_dismissed') !== '1') {
+    var deferredPrompt = null;
+    var banner = document.getElementById('pwa-install-banner');
+    var installBtn = document.getElementById('pwa-install-action');
+    var dismissBtn = document.getElementById('pwa-install-dismiss');
 
-  // Check if previously dismissed in this session
-  if (sessionStorage.getItem('pwa_prompt_dismissed') === '1') {
-    return;
-  }
-
-  var deferredPrompt = null;
-  var banner = document.getElementById('pwa-install-banner');
-  var installBtn = document.getElementById('pwa-install-action');
-  var dismissBtn = document.getElementById('pwa-install-dismiss');
-
-  window.addEventListener('beforeinstallprompt', function(e) {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (banner && sessionStorage.getItem('pwa_prompt_dismissed') !== '1') {
-      banner.style.display = 'flex';
-    }
-  });
-
-  if (installBtn) {
-    installBtn.addEventListener('click', function() {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(function(choiceResult) {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('[PWA] User accepted the install prompt');
-          }
-          deferredPrompt = null;
-          if (banner) banner.style.display = 'none';
-        });
-      } else {
-        // Fallback for iOS Safari or other browsers
-        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIOS) {
-          alert("To install DPS IMS on your iPhone or iPad:\n\n1. Tap the Share button (square with arrow) at the bottom.\n2. Scroll down and tap 'Add to Home Screen' (+).\n3. Tap 'Add' in the top right.");
-        } else {
-          alert("To install this app:\nTap the 3 dots menu in your browser and select 'Install app' or 'Add to Home screen'.");
-        }
-        if (banner) banner.style.display = 'none';
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (banner && sessionStorage.getItem('pwa_prompt_dismissed') !== '1') {
+        banner.style.display = 'flex';
       }
     });
-  }
 
-  if (dismissBtn && banner) {
-    dismissBtn.addEventListener('click', function() {
-      banner.style.display = 'none';
-      sessionStorage.setItem('pwa_prompt_dismissed', '1');
+    if (installBtn) {
+      installBtn.addEventListener('click', function() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(function(choiceResult) {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('[PWA] User accepted the install prompt');
+            }
+            deferredPrompt = null;
+            if (banner) banner.style.display = 'none';
+          });
+        } else {
+          // Fallback for iOS Safari or other browsers
+          var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+          if (isIOS) {
+            alert("To install DPS IMS on your iPhone or iPad:\n\n1. Tap the Share button (square with arrow) at the bottom.\n2. Scroll down and tap 'Add to Home Screen' (+).\n3. Tap 'Add' in the top right.");
+          } else {
+            alert("To install this app:\nTap the 3 dots menu in your browser and select 'Install app' or 'Add to Home screen'.");
+          }
+          if (banner) banner.style.display = 'none';
+        }
+      });
+    }
+
+    if (dismissBtn && banner) {
+      dismissBtn.addEventListener('click', function() {
+        banner.style.display = 'none';
+        sessionStorage.setItem('pwa_prompt_dismissed', '1');
+      });
+    }
+
+    window.addEventListener('appinstalled', function() {
+      console.log('[PWA] Application installed successfully!');
+      if (banner) banner.style.display = 'none';
+      deferredPrompt = null;
     });
   }
-
-  window.addEventListener('appinstalled', function() {
-    console.log('[PWA] Application installed successfully!');
-    if (banner) banner.style.display = 'none';
-    deferredPrompt = null;
-  });
 
   // 3. Automatic Live Alert Prompt (Asks 2-3 times max across sessions, then stops)
   window.__checkAutoPushPrompt = function() {

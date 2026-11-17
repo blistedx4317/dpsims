@@ -24,7 +24,9 @@ module.exports = wrap(['GET', 'PUT'], async ({ req, store, user, body, json }) =
     else { const r = S.applyTeacher(cur, client.reqs, user.name); next = r.state; assigned = r.assigned; }
     const nv = await store.casState(version, next);
     if (nv) {
-      push.dispatchStateNotifications(store, user, cur, next).catch(() => {});
+      await push.dispatchStateNotifications(store, user, cur, next).catch((err) => {
+        console.error('Push dispatch error:', err ? err.message : err);
+      });
       return json(200, { version: nv, data: S.viewFor(user, next), assigned });
     }
   }

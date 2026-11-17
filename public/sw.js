@@ -1,5 +1,5 @@
 /* DPS Amrapali IMS - Progressive Web App Service Worker */
-const CACHE_NAME = 'dps-ims-v1.0.21';
+const CACHE_NAME = 'dps-ims-v1.0.22';
 
 const STATIC_ASSETS = [
   '/',
@@ -133,9 +133,11 @@ self.addEventListener('push', (event) => {
     body: data.body || 'New inventory update.',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: [150, 50, 150],
-    tag: data.slipId ? ('slip-' + data.slipId) : 'dps-ims-notification',
+    vibrate: [200, 100, 200, 100, 200],
+    tag: data.slipId ? ('slip-' + data.slipId) : ('dps-push-' + Date.now()),
     renotify: true,
+    requireInteraction: true,
+    silent: false,
     data: {
       url: data.url || '/'
     }
