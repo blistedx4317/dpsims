@@ -22,10 +22,15 @@ module.exports = wrap(['GET', 'PUT'], async ({ req, store, user, body, json }) =
     return json(403, { error: 'Unauthorized role.' });
   }
 
+  // Payload size & structure limits
+  if (Array.isArray(client.items) && client.items.length > 5000) return json(400, { error: 'Too many items (max 5000).' });
+  if (Array.isArray(client.bills) && client.bills.length > 5000) return json(400, { error: 'Too many bills (max 5000).' });
+  if (Array.isArray(client.reqs) && client.reqs.length > 5000) return json(400, { error: 'Too many slips (max 5000).' });
+
   // Teacher permission guard: cannot modify stock, bills, faculty, or approvals
   if (user.role === 'teacher') {
     if (!Array.isArray(client.reqs)) return json(400, { error: 'Invalid requisition data.' });
-    if (client.reqs.length > 50) return json(400, { error: 'Too many slips in a single submission.' });
+    if (client.reqs.length > 50) return json(400, { error: 'Too many slips in a single submission (max 50).' });
   }
   for (let attempt = 0; attempt < 6; attempt++) {
     const { data: cur, version } = await store.getState();
