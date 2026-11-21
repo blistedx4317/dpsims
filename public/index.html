@@ -4414,8 +4414,7 @@ html[data-theme="dgwhite"] #dps-splash .sp-bar i{background:#0f7a58}
     <div class="group" id="nameGroup" hidden>
       <label class="row">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>
-        <input type="text" id="name" aria-label="Your name" placeholder="Enter your full name" autocomplete="name" list="name-list" style="flex:1;background:transparent;border:0;outline:none;font:inherit;color:inherit">
-        <datalist id="name-list"></datalist>
+        <select id="name" aria-label="Your name"></select>
       </label>
     </div>
 
@@ -4618,7 +4617,10 @@ try{
     /* sign-ins live on the server; here we only fetch the staff names for the "Select your name" list */
     store={teachers:{}};
     var r=await dpsApi('teachers');
-    if(r.ok&&r.data&&r.data.names)r.data.names.forEach(function(n){store.teachers[n]={}});
+    if(r.ok&&r.data&&r.data.names){
+      r.data.names.forEach(function(n){store.teachers[n]={}});
+      fillNames();
+    }
   }
   function save(){}
 
@@ -4698,11 +4700,13 @@ try{
 
   function fillNames(){
     var saved = ''; try { saved = localStorage.getItem('dps_teacher_name') || ''; } catch(e){}
-    var nInput = $('#name');
-    if (nInput && !nInput.value && saved) nInput.value = saved;
     var L = (store && store.teachers) ? Object.keys(store.teachers) : TEACHERS;
-    var dl = $('#name-list');
-    if (dl) dl.innerHTML = L.map(function(n){ return '<option value="' + String(n).replace(/&/g,'&amp;').replace(/"/g,'&quot;') + '">'; }).join('');
+    var opts = '<option value="">Select your name</option>' + L.map(function(n){
+      var sel = (saved && n === saved) ? ' selected' : '';
+      return '<option value="' + String(n).replace(/&/g,'&amp;').replace(/"/g,'&quot;') + '"' + sel + '>' + String(n).replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</option>';
+    }).join('');
+    var selEl = $('#name');
+    if (selEl) selEl.innerHTML = opts;
   }
   fillNames();
   $('#seg').addEventListener('click',function(e){

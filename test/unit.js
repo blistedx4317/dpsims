@@ -53,8 +53,7 @@ server.listen(0, async () => {
     ok(r.s === 200 && r.j.created && /^\d{4}$/.test(r.j.pin) && r.j.pw.length === 10, 'admin creates teacher with temporary credentials');
     const tmpPw = r.j.pw;
     await admin('POST', '/api/users', { action: 'ensure', name: 'Mr Khan' }); const kh = await admin('POST', '/api/users', { action: 'reset', name: 'Mr Khan' });
-    ok((await anon('GET', '/api/teachers')).s === 401, 'unauthenticated teacher list refused');
-    ok((await admin('GET', '/api/teachers')).j.names.join() === 'Mr Khan,Ms Rao', 'authenticated teacher list returned');
+    ok((await anon('GET', '/api/teachers')).j.names.join() === 'Mr Khan,Ms Rao', 'teacher list is public for dropdown (names only)');
     r = await t1('POST', '/api/login', { role: 'teacher', name: 'Ms Rao', method: 'pw', secret: tmpPw });
     ok(r.s === 200 && r.j.mustSetPin === true, 'temporary password works once and forces a new PIN');
     ok((await t1('GET', '/api/state')).j.code === 'set_pin', 'no data until the PIN is set');
@@ -124,7 +123,7 @@ server.listen(0, async () => {
     await admin('POST', '/api/users', { action: 'reset', name: 'Ms Rao' });
     ok((await t1b('GET', '/api/state')).s === 401, 'admin reset signs the teacher out');
     await admin('POST', '/api/users', { action: 'delete', name: 'Mr Khan' });
-    ok((await t2b('GET', '/api/state')).s === 401 && !(await admin('GET', '/api/teachers')).j.names.includes('Mr Khan'), 'deleted teacher cannot sign in and leaves the list');
+    ok((await t2b('GET', '/api/state')).s === 401 && !(await anon('GET', '/api/teachers')).j.names.includes('Mr Khan'), 'deleted teacher cannot sign in and leaves the list');
     ok((await princ('POST', '/api/users', { action: 'reset', name: 'Ms Rao' })).s === 403, 'principal cannot manage passwords');
     console.log('Assets');
     r = await anon('GET', '/api/health');
