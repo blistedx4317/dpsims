@@ -16,6 +16,17 @@ module.exports = wrap(['GET', 'PUT'], async ({ req, store, user, body, json }) =
 
   const client = body.data;
   if (!client || typeof client !== 'object') return json(400, { error: 'No data.' });
+
+  // Strict role whitelist & authorization boundary
+  if (!['admin', 'principal', 'teacher'].includes(user.role)) {
+    return json(403, { error: 'Unauthorized role.' });
+  }
+
+  // Teacher permission guard: cannot modify stock, bills, faculty, or approvals
+  if (user.role === 'teacher') {
+    if (!Array.isArray(client.reqs)) return json(400, { error: 'Invalid requisition data.' });
+    if (client.reqs.length > 50) return json(400, { error: 'Too many slips in a single submission.' });
+  }
   for (let attempt = 0; attempt < 6; attempt++) {
     const { data: cur, version } = await store.getState();
     let next, assigned = {};

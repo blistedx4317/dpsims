@@ -21,10 +21,11 @@ module.exports = wrap(['GET', 'POST'], async ({ req, store, body, ip, res, json 
   const name = role === 'admin' ? 'Administrator' : role === 'principal' ? 'Principal' : String(body.name || '').trim().slice(0, 80);
   if (!name) return json(400, { error: 'Select your name.' });
 
-  const key = `${ip}|${role}|${name}`;
+  const ipKey = `ip:${ip}|${role}|${name}`;
+  const acctKey = `acct:${role}|${name}`;
   if (isDebug) console.time('[LOGIN] db_lookup');
   const [wait, u, stateObj] = await Promise.all([
-    A.checkLock(store, key),
+    A.checkProgressiveLock(store, ipKey, acctKey),
     store.findUser(role, name),
     store.getState().catch(() => null)
   ]);
@@ -42,12 +43,12 @@ module.exports = wrap(['GET', 'POST'], async ({ req, store, body, ip, res, json 
   if (isDebug) console.timeEnd('[LOGIN] hash_verify');
 
   if (!ok) {
-    const w = await A.recordFail(store, key);
+    const w = await A.recordProgressiveFail(store, ipKey, acctKey);
     if (isDebug) console.timeEnd(`[LOGIN] total ip=${ip}`);
     return w ? json(429, { error: 'Too many attempts. Please wait.', retryAfter: w }) : json(401, { error: 'Incorrect credentials.' });
   }
 
-  store.clearAttempt(key).catch(() => {});
+  A.clearProgressiveAttempts(store, ipKey, acctKey);
   res.setHeader('Set-Cookie', A.makeCookie(u));
   if (isDebug) console.timeEnd(`[LOGIN] total ip=${ip}`);
   const payload = { ok: true, role: u.role, name: u.name, mustSetPin: !!u.must_change };

@@ -1,5 +1,6 @@
 'use strict';
 /* Local server: node dev-server.js */
+try { require('./nat64-preload.js'); } catch (e) {}
 const http = require('http'), fs = require('fs'), path = require('path');
 
 // Load .env if present

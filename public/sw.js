@@ -1,5 +1,5 @@
 /* DPS Amrapali IMS - Progressive Web App Service Worker */
-const CACHE_NAME = 'dps-ims-v1.0.22';
+const CACHE_NAME = 'dps-ims-v1.0.23';
 
 const STATIC_ASSETS = [
   '/',
@@ -83,12 +83,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Static Assets & Fonts/Logo: Cache First, fallback to network
+  // 2. All Authenticated API Requests: Strictly Network-Only, NEVER cached
+  if (url.pathname.startsWith('/api/')) {
+    // Only static public brand assets (logo, fonts.css) may be cached
+    const isPublicStaticAsset = url.pathname === '/api/assets' && (url.searchParams.get('key') === 'logo' || url.searchParams.get('key') === 'fonts.css');
+    if (!isPublicStaticAsset) {
+      event.respondWith(
+        fetch(req, { cache: 'no-store' }).catch(() => {
+          return new Response(JSON.stringify({ error: 'Network error. Please try again.' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        })
+      );
+      return;
+    }
+  }
+
+  // 3. Static Assets & Fonts/Logo: Cache First, fallback to network
   if (
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.ico') ||
     url.pathname.endsWith('.webmanifest') ||
-    url.pathname.endsWith('.json') ||
     (url.pathname === '/api/assets')
   ) {
     event.respondWith(
@@ -101,19 +117,6 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         }).catch(() => new Response('', { status: 404 }));
-      })
-    );
-    return;
-  }
-
-  // 3. API Requests: Network first, never return invalid response
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(req).catch(() => {
-        return new Response(JSON.stringify({ error: 'Network error. Please try again.' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
       })
     );
     return;

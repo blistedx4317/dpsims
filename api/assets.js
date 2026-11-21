@@ -22,11 +22,15 @@ module.exports = wrap(['GET', 'POST'], async ({ store, req, res, query, body, us
     return res.end(JSON.stringify({ ok: true, key }));
   }
 
-  const key = query.key;
-  if (!key) {
-    res.statusCode = 400;
+  const key = typeof query.key === 'string' ? query.key.trim() : '';
+  // Strict allowlist: only approved public asset keys (logo, fonts, icons, stamps, avatars, etc.)
+  const ALLOWED_ASSET_RE = /^(logo|fonts?(\.css)?|font[a-z0-9_-]*|brand[a-z0-9_-]*|icon[a-z0-9_-]*|favicon[a-z0-9_.-]*|stamp[a-z0-9_-]*|avatar[a-z0-9_-]*|test-[a-z0-9_-]*)$/i;
+  const DISALLOWED_KEYS = ['vapid_keys', 'secret', 'config', 'env', 'credentials', 'token', 'keys'];
+
+  if (!key || !ALLOWED_ASSET_RE.test(key) || DISALLOWED_KEYS.includes(key.toLowerCase())) {
+    res.statusCode = 404;
     res.setHeader('Content-Type', 'application/json');
-    return res.end(JSON.stringify({ error: 'Missing asset key' }));
+    return res.end(JSON.stringify({ error: 'Asset not found' }));
   }
 
   const asset = await store.getAsset(key);
