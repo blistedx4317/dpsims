@@ -49,7 +49,7 @@ module.exports = wrap(['GET', 'POST'], async ({ req, store, body, ip, res, json 
   }
 
   A.clearProgressiveAttempts(store, ipKey, acctKey);
-  res.setHeader('Set-Cookie', A.makeCookie(u));
+  res.setHeader('Set-Cookie', A.makeCookie(u, req));
   if (isDebug) console.timeEnd(`[LOGIN] total ip=${ip}`);
   const payload = { ok: true, role: u.role, name: u.name, mustSetPin: !!u.must_change };
   if (stateObj && stateObj.data && !u.must_change) {

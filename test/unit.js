@@ -151,6 +151,14 @@ server.listen(0, async () => {
     await admin('POST', '/api/logout', {});
     ok((await admin('GET', '/api/state')).s === 401, 'sign out ends the session');
 
+    // Multi-cookie tolerance: ensure stale non-host cookie doesn't block valid host cookie
+    const authHelper = require('../lib/auth');
+    const uPrinc = await require('../lib/store').getStore().findUser('principal', 'Principal');
+    const validTok = authHelper.sign({ u: uPrinc.id, v: uPrinc.token_version, e: Date.now() + 3600000 });
+    const staleTok = authHelper.sign({ u: uPrinc.id, v: 99999, e: Date.now() + 3600000 });
+    const multiCheck = await anon('GET', '/api/me', null, { Cookie: `dps_sess=${staleTok}; __Host-dps_sess=${validTok}` });
+    ok(multiCheck.s === 200 && multiCheck.j.role === 'principal', 'stale dps_sess cookie ignored when valid __Host-dps_sess is present');
+
     console.log('Brute-force lock');
     const bf = client(port); let last;
     for (let i = 0; i < 5; i++) last = await bf('POST', '/api/login', { role: 'admin', method: 'pw', secret: 'nope' + i });

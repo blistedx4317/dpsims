@@ -5059,7 +5059,20 @@ try{
   };
   window.__dpsLoad=window.__dpsLoadStateBackground;
   window.__dpsClear=function(){seed();sessionCfg=Object.assign({},defaultSessionCfg);window.__reqSeq=0;dpsDirty=false};
-  function sessExpired(){alert('Your session has ended. Please sign in again.');location.reload()}
+  var sessCheckBusy=false;
+  async function checkSessExpired(){
+    if(sessCheckBusy)return;
+    sessCheckBusy=true;
+    try{
+      var chk=await dpsApi('me');
+      if(chk&&chk.status===401){
+        alert('Your session has ended. Please sign in again.');
+        location.reload();
+      }
+    }catch(e){}
+    sessCheckBusy=false;
+  }
+  function sessExpired(){checkSessExpired()}
   async function flush(){
     if(!window.__me||!dpsDirty)return;
     if(dpsSaving){clearTimeout(dpsTimer);dpsTimer=setTimeout(flush,300);return}
@@ -5067,7 +5080,7 @@ try{
     var body=window.__me.role==='admin'?{items:items,uid:uid,bills:bills,bid:bid,fac:fac,log:log,reqs:reqs,sessionCfg:sessionCfg}:{reqs:reqs};
     var r=await dpsApi('state',{method:'PUT',body:{data:body}});
     dpsSaving=false;
-    if(r.status===401){sessExpired();return}
+    if(r.status===401){await checkSessExpired();return}
     if(!r.ok){dpsDirty=true;clearTimeout(dpsTimer);dpsTimer=setTimeout(flush,5000);return}
     dpsVer=r.data.version;
     if(!dpsDirty){
@@ -5150,7 +5163,7 @@ try{
   setInterval(async function(){
     if(!window.__me||window.__dpsStateStatus!=='loaded'||dpsDirty||dpsSaving)return;
     var r=await dpsApi('state?since='+dpsVer);
-    if(r.status===401){sessExpired();return}
+    if(r.status===401){await checkSessExpired();return}
     if(!r.ok||r.data.unchanged||dpsDirty||dpsSaving)return;
     var oldReqs = (reqs || []).slice();
     dpsVer=r.data.version;

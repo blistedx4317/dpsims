@@ -2,7 +2,7 @@
 const { wrap } = require('../lib/http');
 const A = require('../lib/auth');
 /* a signed-in user changes their own password and/or PIN */
-module.exports = wrap(['POST'], async ({ store, user, body, ip, res, json }) => {
+module.exports = wrap(['POST'], async ({ req, store, user, body, ip, res, json }) => {
   const cur = typeof body.current === 'string' ? body.current : '';
   const newPw = typeof body.newPw === 'string' ? body.newPw : '';
   const newPin = typeof body.newPin === 'string' ? body.newPin : '';
@@ -25,6 +25,6 @@ module.exports = wrap(['POST'], async ({ store, user, body, ip, res, json }) => 
     pin_hash: newPin ? await A.hashSecret(newPin) : null,
     bump: 1,                                       // signs out every other device
   });
-  res.setHeader('Set-Cookie', A.makeCookie(upd));  // keep this device signed in
+  res.setHeader('Set-Cookie', A.makeCookie(upd, req));  // keep this device signed in
   json(200, { ok: true });
 });
