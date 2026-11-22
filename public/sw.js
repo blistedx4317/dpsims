@@ -1,5 +1,5 @@
 /* DPS Amrapali IMS - Progressive Web App Service Worker */
-const CACHE_NAME = 'dps-ims-v1.0.26';
+const CACHE_NAME = 'dps-ims-v1.0.27';
 
 const STATIC_ASSETS = [
   '/',
@@ -121,7 +121,7 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// Push Notifications: show alert even when browser/app is completely closed
+// Push Notifications: wake device & display high-priority alert when locked/closed
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -130,18 +130,23 @@ self.addEventListener('push', (event) => {
     data = { title: 'DPS IMS Notification', body: event.data ? event.data.text() : 'You have a new update.' };
   }
   const title = data.title || 'DPS Amrapali Inventory';
+  const origin = self.location.origin;
   const options = {
     body: data.body || 'New inventory update.',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    vibrate: [200, 100, 200, 100, 200],
+    icon: origin + '/icon-192.png',
+    badge: origin + '/icon-192.png',
+    vibrate: [300, 100, 300, 100, 300],
     tag: data.slipId ? ('slip-' + data.slipId) : ('dps-push-' + Date.now()),
     renotify: true,
     requireInteraction: true,
     silent: false,
+    timestamp: Date.now(),
     data: {
       url: data.url || '/'
-    }
+    },
+    actions: [
+      { action: 'open', title: 'Open IMS' }
+    ]
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

@@ -12,6 +12,17 @@ module.exports = wrap(['GET', 'POST', 'DELETE'], async ({ req, store, user, body
   if (!user) return json(401, { error: 'Please sign in again.' });
 
   if (req.method === 'POST') {
+    if (body.test) {
+      await store.ensurePushTable().catch(() => {});
+      const targets = user.role === 'teacher' ? [{ role: 'teacher', name: user.name }] : [{ role: user.role }];
+      await push.sendToTargets(store, targets, {
+        title: 'DPS IMS: Live Alert Test',
+        body: 'Alerts are working! You will receive updates even when your phone is locked.',
+        url: '/'
+      });
+      return json(200, { ok: true, testSent: true });
+    }
+
     const sub = body.subscription;
     if (!sub || !sub.endpoint || !sub.keys) {
       return json(400, { error: 'Invalid subscription object.' });
