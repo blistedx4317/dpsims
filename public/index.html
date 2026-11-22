@@ -4592,7 +4592,7 @@ window.__subscribePush = async function(promptUser) {
       });
     }
     var saved = await dpsApi('push', { method: 'POST', body: { subscription: sub.toJSON() } });
-    return { ok: !!(saved && saved.ok) };
+    return { ok: !!(saved && saved.ok), subscription: sub };
   } catch (e) {
     console.error('Push subscribe error:', e);
     return { ok: false, error: e.message };
@@ -6564,18 +6564,30 @@ try{
     if(testBtn){
       testBtn.disabled = true;
       testBtn.textContent = 'Sending...';
-      dpsApi('push', { method: 'POST', body: { test: true } }).then(function(r){
-        testBtn.disabled = false;
-        testBtn.textContent = 'Test Alert';
-        if(r && r.ok){
-          notify('Test alert sent! Lock your phone now to test.');
-        } else {
-          notify('Could not send test alert. Make sure push is enabled.');
+      (async function(){
+        try {
+          var reg = ('serviceWorker' in navigator) ? (await navigator.serviceWorker.ready.catch(function(){ return null; })) : null;
+          var sub = (reg && reg.pushManager) ? (await reg.pushManager.getSubscription().catch(function(){ return null; })) : null;
+          if(!sub && window.__subscribePush){
+            var subRes = await window.__subscribePush(true);
+            if(subRes && subRes.subscription) sub = subRes.subscription;
+            else if(reg && reg.pushManager) sub = await reg.pushManager.getSubscription().catch(function(){ return null; });
+          }
+          var subData = sub && sub.toJSON ? sub.toJSON() : null;
+          var r = await dpsApi('push', { method: 'POST', body: { test: true, subscription: subData } });
+          testBtn.disabled = false;
+          testBtn.textContent = 'Test Alert';
+          if(r && r.ok){
+            notify('Test alert sent! Lock your phone now to test.');
+          } else {
+            notify((r && r.data && r.data.error) || 'Could not send test alert. Make sure push is enabled.');
+          }
+        } catch(err) {
+          testBtn.disabled = false;
+          testBtn.textContent = 'Test Alert';
+          notify('Error sending test alert.');
         }
-      }).catch(function(){
-        testBtn.disabled = false;
-        testBtn.textContent = 'Test Alert';
-      });
+      })();
       return;
     }
     if((e.target.dataset&&e.target.dataset.a==='save-new-password')||e.target.closest('[data-a="save-new-password"]')){

@@ -14,13 +14,16 @@ module.exports = wrap(['GET', 'POST', 'DELETE'], async ({ req, store, user, body
   if (req.method === 'POST') {
     if (body.test) {
       await store.ensurePushTable().catch(() => {});
+      if (body.subscription && body.subscription.endpoint && body.subscription.keys) {
+        await store.savePushSubscription(user.id, user.role, user.name, body.subscription).catch(() => {});
+      }
       const targets = user.role === 'teacher' ? [{ role: 'teacher', name: user.name }] : [{ role: user.role }];
-      await push.sendToTargets(store, targets, {
+      const sentCount = await push.sendToTargets(store, targets, {
         title: 'DPS IMS: Live Alert Test',
         body: 'Alerts are working! You will receive updates even when your phone is locked.',
         url: '/'
       });
-      return json(200, { ok: true, testSent: true });
+      return json(200, { ok: true, testSent: true, count: sentCount });
     }
 
     const sub = body.subscription;
