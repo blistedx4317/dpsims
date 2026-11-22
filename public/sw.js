@@ -1,5 +1,5 @@
 /* DPS Amrapali IMS - Progressive Web App Service Worker */
-const CACHE_NAME = 'dps-ims-v1.0.25';
+const CACHE_NAME = 'dps-ims-v1.0.26';
 
 const STATIC_ASSETS = [
   '/',
@@ -66,10 +66,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 1. Navigation requests (App Shell): Always try network first, then cache, then fallback. NEVER return undefined!
+  // 1. Navigation requests (App Shell): Always try network first, update cache, then fallback. NEVER return undefined!
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(async () => {
+      fetch(req).then((response) => {
+        if (response && response.status === 200) {
+          const respClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
+        }
+        return response;
+      }).catch(async () => {
         const cached = (await caches.match('/index.html')) || (await caches.match('/'));
         if (cached) return cached;
         return fetch('/index.html').catch(() => {
@@ -83,20 +89,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. All Authenticated API Requests: Strictly Network-Only, NEVER cached
+  // 2. All Authenticated API Requests: Let the native browser network handle them directly (DO NOT INTERCEPT)
   if (url.pathname.startsWith('/api/')) {
     // Only static public brand assets (logo, fonts.css) may be cached
     const isPublicStaticAsset = url.pathname === '/api/assets' && (url.searchParams.get('key') === 'logo' || url.searchParams.get('key') === 'fonts.css');
     if (!isPublicStaticAsset) {
-      event.respondWith(
-        fetch(req, { cache: 'no-store' }).catch(() => {
-          return new Response(JSON.stringify({ error: 'Network error. Please try again.' }), {
-            status: 503,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        })
-      );
-      return;
+      return; // Do NOT call event.respondWith! Native network stack preserves credentials, cookies and avoids SW idle timeouts
     }
   }
 

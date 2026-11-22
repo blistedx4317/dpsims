@@ -5065,9 +5065,14 @@ try{
     sessCheckBusy=true;
     try{
       var chk=await dpsApi('me');
-      if(chk&&chk.status===401){
-        alert('Your session has ended. Please sign in again.');
-        location.reload();
+      if(chk&&chk.status===401&&chk.data&&chk.data.error==='Please sign in again.'){
+        // Double-check after 1.5 seconds to guard against transient 401s on mobile
+        await new Promise(function(res){setTimeout(res,1500)});
+        var rechk=await dpsApi('me');
+        if(rechk&&rechk.status===401&&rechk.data&&rechk.data.error==='Please sign in again.'){
+          alert('Your session has ended. Please sign in again.');
+          location.reload();
+        }
       }
     }catch(e){}
     sessCheckBusy=false;
@@ -5160,8 +5165,8 @@ try{
       if(view==='stock'||view==='req'||view==='bills'||view==='rep'||view==='fac')go();
     }catch(e){}
   }
-  setInterval(async function(){
-    if(!window.__me||window.__dpsStateStatus!=='loaded'||dpsDirty||dpsSaving)return;
+  async function pollStateUpdates(){
+    if(document.hidden||!window.__me||window.__dpsStateStatus!=='loaded'||dpsDirty||dpsSaving)return;
     var r=await dpsApi('state?since='+dpsVer);
     if(r.status===401){await checkSessExpired();return}
     if(!r.ok||r.data.unchanged||dpsDirty||dpsSaving)return;
@@ -5170,7 +5175,11 @@ try{
     applyState(r.data.data);
     dpsRedraw();
     notifyReqChanges(oldReqs, r.data.data.reqs);
-  },3500);
+  }
+  setInterval(pollStateUpdates,6000);
+  document.addEventListener('visibilitychange',function(){
+    if(!document.hidden) pollStateUpdates();
+  });
 
   var view='stock',mode='f',cat='All',tag=null,openId=null,billId=null,editingBillId=null,facName=null,query='',addTab='issue',dmgItem=null;
   var rowsI=[{id:0,v:'',q:''}],rowsB=[{id:0,v:'',q:'',r:''}],rowsEB=[];
@@ -9969,6 +9978,13 @@ html body #T#T#T#T .t-nav .t-badge:empty {
           try { reg.update(); } catch (e) {}
         })
         .catch(function(err) {});
+    });
+    var refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
   }
 
