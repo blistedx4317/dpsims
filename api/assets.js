@@ -24,7 +24,7 @@ module.exports = wrap(['GET', 'POST'], async ({ store, req, res, query, body, us
 
   const key = typeof query.key === 'string' ? query.key.trim() : '';
   // Strict allowlist: only approved public asset keys (logo, fonts, icons, stamps, avatars, etc.)
-  const ALLOWED_ASSET_RE = /^(logo|fonts?(\.css)?|font[a-z0-9_-]*|brand[a-z0-9_-]*|icon[a-z0-9_-]*|favicon[a-z0-9_.-]*|stamp[a-z0-9_-]*|avatar[a-z0-9_-]*|test-[a-z0-9_-]*)$/i;
+  const ALLOWED_ASSET_RE = /^(logo[a-z0-9_-]*|fonts?(\.css)?|font[a-z0-9_-]*|brand[a-z0-9_-]*|icon[a-z0-9_-]*|favicon[a-z0-9_.-]*|stamp[a-z0-9_-]*|avatar[a-z0-9_-]*|test-[a-z0-9_-]*)$/i;
   const DISALLOWED_KEYS = ['vapid_keys', 'secret', 'config', 'env', 'credentials', 'token', 'keys'];
 
   if (!key || !ALLOWED_ASSET_RE.test(key) || DISALLOWED_KEYS.includes(key.toLowerCase())) {
@@ -33,8 +33,19 @@ module.exports = wrap(['GET', 'POST'], async ({ store, req, res, query, body, us
     return res.end(JSON.stringify({ error: 'Asset not found' }));
   }
 
-  const asset = await store.getAsset(key);
+    let asset = await store.getAsset(key);
   if (!asset) {
+    const fs = require('fs');
+    const path = require('path');
+    const staticMap = { 'logo': 'logo.png', 'logo-nobg': 'logo-nobg.png' };
+    if (staticMap[key]) {
+      const p = path.join(__dirname, '..', 'public', staticMap[key]);
+      if (fs.existsSync(p)) {
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+        return res.end(fs.readFileSync(p));
+      }
+    }
     res.statusCode = 404;
     res.setHeader('Content-Type', 'application/json');
     return res.end(JSON.stringify({ error: 'Asset not found' }));

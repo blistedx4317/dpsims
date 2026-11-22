@@ -5,3 +5,4 @@ node_modules
 nat64-preload.js
 
 .env*
+.vercel
